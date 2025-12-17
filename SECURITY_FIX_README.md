@@ -15,8 +15,8 @@ GitHub flagged your code because **Firebase credentials were hardcoded** in [`Lo
 **Before:**
 ```typescript
 const firebaseConfig = {
-  apiKey: "AIzaSyC44s2jxX1h_-fv3j_kmLvXwTeD9WpelBQ",
-  authDomain: "smart-home-esp32-1406c.firebaseapp.com",
+  apiKey: "YOUR_API_KEY_HERE",
+  authDomain: "your-project.firebaseapp.com",
   // ... hardcoded values
 };
 ```
@@ -50,13 +50,13 @@ Since `.env` is gitignored (which is correct for security), you need to manually
 3. Fill in your actual Firebase credentials:
 
 ```bash
-VITE_FIREBASE_API_KEY=AIzaSyC44s2jxX1h_-fv3j_kmLvXwTeD9WpelBQ
-VITE_FIREBASE_AUTH_DOMAIN=smart-home-esp32-1406c.firebaseapp.com
-VITE_FIREBASE_DATABASE_URL=https://smart-home-esp32-1406c-default-rtdb.asia-southeast1.firebasedatabase.app
-VITE_FIREBASE_PROJECT_ID=smart-home-esp32-1406c
-VITE_FIREBASE_STORAGE_BUCKET=smart-home-esp32-1406c.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=543779307127
-VITE_FIREBASE_APP_ID=1:543779307127:web:d22bba92c6499112021072
+VITE_FIREBASE_API_KEY=your_api_key_here
+VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+VITE_FIREBASE_DATABASE_URL=https://your_project_id.firebasedatabase.app
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
 ```
 
 ### Step 2: Restart Your Dev Server
