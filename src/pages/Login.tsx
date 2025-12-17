@@ -9,24 +9,24 @@ import { Link, useNavigate } from "react-router-dom";
 
 // Firebase imports
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
+import {
+  getAuth,
+  signInWithEmailAndPassword,
   onAuthStateChanged,
   User as FirebaseUser,
   AuthError
 } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 
-// Firebase configuration - Replace with your actual config
+// Firebase configuration - Using environment variables for security
 const firebaseConfig = {
-  apiKey: "AIzaSyC44s2jxX1h_-fv3j_kmLvXwTeD9WpelBQ",
-  authDomain: "smart-home-esp32-1406c.firebaseapp.com",
-  databaseURL: "https://smart-home-esp32-1406c-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "smart-home-esp32-1406c",
-  storageBucket: "smart-home-esp32-1406c.appspot.com",
-  messagingSenderId: "543779307127",
-  appId: "1:543779307127:web:d22bba92c6499112021072"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
@@ -40,7 +40,7 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  
+
   const navigate = useNavigate();
 
   // Check if user is already logged in
@@ -59,7 +59,7 @@ const Login: React.FC = () => {
   // Handle form submission
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       setError("Please fill in all fields");
       return;
@@ -71,16 +71,16 @@ const Login: React.FC = () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      
+
       console.log("Login successful:", user.uid);
-      
+
       // Redirect to dashboard
       navigate('/dashboard');
-      
+
     } catch (error) {
       const authError = error as AuthError;
       console.error("Login error:", authError);
-      
+
       // Handle different error types
       switch (authError.code) {
         case 'auth/user-not-found':
@@ -131,7 +131,7 @@ const Login: React.FC = () => {
             </CardDescription>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* Error Alert */}
           {error && (
@@ -158,7 +158,7 @@ const Login: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <div className="relative">
