@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useSensorData } from '../hooks/useSensorData';
 import { useRelayControl } from '../hooks/useRelayControl';
 import { useChatbot } from '../hooks/useChatbot';
+import { useSettings } from '../hooks/useSettings';
 
 // Components
 import { DashboardHeader } from '../components/layout/DashboardHeader';
@@ -24,6 +25,7 @@ const Dashboard: React.FC = () => {
   const { sensorData, connectionStatus } = useSensorData(user?.uid || null);
   const { relayStates, toggleRelay } = useRelayControl(user?.uid || null);
   const { messages, isTyping, sendMessage } = useChatbot(user?.uid || null);
+  const { settings } = useSettings(user?.uid || null);
 
   const [speechVolume, setSpeechVolume] = useState<number>(1.0);
 
@@ -57,7 +59,7 @@ const Dashboard: React.FC = () => {
   const waterTankStatus = getWaterTankStatus(sensorData.waterLevel);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background transition-colors duration-300">
       {/* Header */}
       <DashboardHeader user={user} connectionStatus={connectionStatus} onLogout={logout} />
 
@@ -68,13 +70,19 @@ const Dashboard: React.FC = () => {
       <main className="max-w-7xl mx-auto p-4 mt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Water Level Monitoring */}
-          <WaterTankCard waterLevel={sensorData.waterLevel} status={waterTankStatus} />
+          <WaterTankCard
+            waterLevel={sensorData.waterLevel}
+            status={waterTankStatus}
+            sensorEnabled={settings.sensors.waterSensorEnabled}
+          />
 
           {/* Electricity Management */}
           <ElectricityCard
             voltage={sensorData.voltage}
             current={sensorData.current}
             power={sensorData.power}
+            totalEnergyKwh={sensorData.totalEnergyKwh}
+            unitPrice={settings.energy.unitPrice}
           />
 
           {/* Relay Control */}
@@ -85,6 +93,8 @@ const Dashboard: React.FC = () => {
             flameDetected={sensorData.flameDetected}
             motionDetected={sensorData.motionDetected}
             lastUpdated={sensorData.lastUpdated}
+            flameSensorEnabled={settings.sensors.flameSensorEnabled}
+            motionSensorEnabled={settings.sensors.motionSensorEnabled}
           />
 
           {/* AI Chatbot */}
@@ -101,10 +111,10 @@ const Dashboard: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="mt-16 bg-gray-100 py-6">
+      <footer className="mt-16 border-t border-border/50 py-8 bg-card/30 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-gray-600">© 2025 Smart Home Automation Project</p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground">© 2025 Smart Home Automation Project</p>
+          <p className="text-xs text-muted-foreground/60 mt-2">
             Powered by Ollama AI • Connected to Firebase
           </p>
         </div>

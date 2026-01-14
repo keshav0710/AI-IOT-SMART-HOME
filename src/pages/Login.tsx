@@ -118,83 +118,109 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-login flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-hover border-0 bg-card/95 backdrop-blur-sm">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-gradient-smart rounded-full flex items-center justify-center">
-            <Home className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center p-4">
+      {/* Animated Gradient Mesh Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/20 rounded-full blur-[100px] animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-[120px]" />
+      </div>
+
+      {/* Decorative Grid Pattern */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] pointer-events-none" />
+
+      <Card className="relative z-10 w-full max-w-md border border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl shadow-black/10">
+        <CardHeader className="text-center space-y-6 pb-2">
+          {/* Animated Logo */}
+          <div className="mx-auto relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary to-purple-600 rounded-2xl blur-xl opacity-50 animate-pulse" />
+            <div className="relative w-20 h-20 bg-gradient-to-br from-primary to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Home className="w-10 h-10 text-white" />
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-2xl font-bold text-foreground">Smart Home Login</CardTitle>
-            <CardDescription className="text-muted-foreground mt-2">
-              Access your home automation dashboard
+          <div className="space-y-2">
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
+              Welcome Back
+            </CardTitle>
+            <CardDescription className="text-muted-foreground text-base">
+              Sign in to your Smart Home Dashboard
             </CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pt-4">
           {/* Error Alert */}
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="border-red-500/30 bg-red-500/10 backdrop-blur-sm">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">Email / Username</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={handleEmailChange}
-                  className="pl-10 h-12 border-input bg-background/50 backdrop-blur-sm"
-                  disabled={loading}
-                  required
-                />
+              <Label htmlFor="email" className="text-sm font-semibold text-foreground/80">Email Address</Label>
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-xl opacity-0 group-focus-within:opacity-100 blur-sm transition-opacity" />
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={handleEmailChange}
+                    className="pl-12 h-13 border-border/50 bg-background/50 backdrop-blur-sm rounded-xl focus-visible:ring-primary/30 transition-all"
+                    disabled={loading}
+                    required
+                  />
+                </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  className="pl-10 h-12 border-input bg-background/50 backdrop-blur-sm"
-                  disabled={loading}
-                  required
-                />
+              <Label htmlFor="password" className="text-sm font-semibold text-foreground/80">Password</Label>
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-xl opacity-0 group-focus-within:opacity-100 blur-sm transition-opacity" />
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={handlePasswordChange}
+                    className="pl-12 h-13 border-border/50 bg-background/50 backdrop-blur-sm rounded-xl focus-visible:ring-primary/30 transition-all"
+                    disabled={loading}
+                    required
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <Button
-                type="submit"
-                className="w-full h-12 bg-gradient-smart hover:opacity-90 transition-all duration-300 font-semibold"
-                size="lg"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Login'
-                )}
-              </Button>
-
-            </div>
+            <Button
+              type="submit"
+              className="w-full h-13 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 rounded-xl font-semibold text-base shadow-lg shadow-primary/20 transition-all duration-300 hover:shadow-xl hover:shadow-primary/30"
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
           </form>
+
+          {/* Footer */}
+          <div className="text-center pt-4 border-t border-border/30">
+            <p className="text-xs text-muted-foreground">
+              Powered by <span className="font-semibold text-primary">Smart Home AI</span>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
