@@ -16,6 +16,7 @@ export function useSensorData(userId: string | null): UseSensorDataReturn {
         voltage: 0,
         current: 0,
         power: 0,
+        totalEnergyKwh: 0,
         flameDetected: false,
         motionDetected: false,
         lastUpdated: Date.now(),

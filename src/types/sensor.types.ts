@@ -3,6 +3,7 @@ export interface SensorData {
     voltage: number;
     current: number;
     power: number;
+    totalEnergyKwh: number; // Accumulated energy from ESP32
     flameDetected: boolean;
     motionDetected: boolean;
     lastUpdated: number;

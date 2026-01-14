@@ -92,6 +92,7 @@ export function listenToSensorData(
                     voltage: data.voltage || 0,
                     current: data.current || 0,
                     power: data.power || 0,
+                    totalEnergyKwh: data.totalEnergyKwh || 0,
                     flameDetected: Boolean(data.flame),
                     motionDetected: Boolean(data.motion),
                     lastUpdated: data.timestamp || Date.now(),
