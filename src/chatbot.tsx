@@ -1,4 +1,4 @@
-import { ref, set, get } from "firebase/database";
+import { ref, set, get, remove } from "firebase/database";
 import { database } from "./firebase";
 
 /* =========================================================
@@ -42,6 +42,150 @@ async function toggleRelay(relayKey, state) {
   } catch (error) {
     console.error(`❌ Error toggling ${relayKey}:`, error);
     throw error;
+  }
+}
+
+/* =========================================================
+   🔹 TIMER HELPER FUNCTIONS
+   ========================================================= */
+
+// Parse duration from text like "2 hours", "30 minutes", "1 hour 30 minutes"
+function parseTimerDuration(text) {
+  const result = { hours: 0, minutes: 0, seconds: 0, totalSeconds: 0 };
+  const lowerText = text.toLowerCase();
+
+  // Match hours
+  const hourMatch = lowerText.match(/(\d+)\s*(hour|hr|h|ghante|ghanta)/);
+  if (hourMatch) result.hours = parseInt(hourMatch[1]);
+
+  // Match minutes
+  const minMatch = lowerText.match(/(\d+)\s*(minute|min|m\b|mins)/);
+  if (minMatch) result.minutes = parseInt(minMatch[1]);
+
+  // Match seconds
+  const secMatch = lowerText.match(/(\d+)\s*(second|sec|s\b|secs)/);
+  if (secMatch) result.seconds = parseInt(secMatch[1]);
+
+  result.totalSeconds = (result.hours * 3600) + (result.minutes * 60) + result.seconds;
+  return result;
+}
+
+// Format seconds to readable string
+function formatDurationText(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+  if (minutes > 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+  if (seconds > 0 && hours === 0) parts.push(`${seconds} second${seconds > 1 ? 's' : ''}`);
+
+  return parts.join(' and ') || '0 seconds';
+}
+
+// Device name mappings
+const DEVICE_MAP = {
+  'light 1': 'relay1',
+  'light one': 'relay1',
+  'first light': 'relay1',
+  'pehli light': 'relay1',
+  'light 2': 'relay2',
+  'light two': 'relay2',
+  'second light': 'relay2',
+  'dusri light': 'relay2',
+  'fan': 'relay3',
+  'pankha': 'relay3',
+  'extra': 'relay4',
+  'device 4': 'relay4',
+  'relay 4': 'relay4',
+};
+
+const RELAY_NAMES = {
+  'relay1': 'Light 1',
+  'relay2': 'Light 2',
+  'relay3': 'Fan',
+  'relay4': 'Extra Device',
+};
+
+// Find relay from text
+function findRelayFromText(text) {
+  const lowerText = text.toLowerCase();
+  for (const [keyword, relay] of Object.entries(DEVICE_MAP)) {
+    if (lowerText.includes(keyword)) {
+      return relay;
+    }
+  }
+  // Fallback: check for generic "light" without number
+  if (lowerText.includes('light') && !lowerText.includes('light 2')) {
+    return 'relay1';
+  }
+  return null;
+}
+
+// Set timer from chatbot command
+async function setRelayTimerFromChat(relayKey, hours, minutes, seconds, action) {
+  try {
+    const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+    if (totalSeconds <= 0) return null;
+
+    const now = Date.now();
+    const timer = {
+      relayKey,
+      endTime: now + (totalSeconds * 1000),
+      duration: totalSeconds,
+      action,
+      createdAt: now,
+    };
+
+    await set(ref(database, `timers/${relayKey}`), timer);
+    console.log(`⏰ Timer set via chatbot: ${relayKey} will turn ${action} in ${formatDurationText(totalSeconds)}`);
+    return timer;
+  } catch (error) {
+    console.error(`Error setting timer for ${relayKey}:`, error);
+    return null;
+  }
+}
+
+// Get active timers status
+async function getActiveTimersStatus() {
+  try {
+    const snapshot = await get(ref(database, 'timers'));
+    if (!snapshot.exists()) {
+      return "No active timers. ⏰";
+    }
+
+    const timers = snapshot.val();
+    const now = Date.now();
+    const activeTimers = [];
+
+    for (const [relayKey, timer] of Object.entries(timers) as [string, { endTime: number; action: string }][]) {
+      const remaining = Math.max(0, Math.floor((timer.endTime - now) / 1000));
+      if (remaining > 0) {
+        activeTimers.push(`• ${RELAY_NAMES[relayKey]}: ${formatDurationText(remaining)} remaining → will turn ${timer.action.toUpperCase()}`);
+      }
+    }
+
+    if (activeTimers.length === 0) {
+      return "No active timers. ⏰";
+    }
+
+    return `Active timers:\n${activeTimers.join('\n')}`;
+  } catch (error) {
+    console.error('Error getting timer status:', error);
+    return "Unable to fetch timer status.";
+  }
+}
+
+// Cancel timer from chatbot
+async function cancelRelayTimerFromChat(relayKey) {
+  try {
+    await remove(ref(database, `timers/${relayKey}`));
+    console.log(`⏰ Timer cancelled for ${relayKey}`);
+    return `Timer for ${RELAY_NAMES[relayKey]} cancelled! ⏰`;
+  } catch (error) {
+    console.error(`Error cancelling timer for ${relayKey}:`, error);
+    return `Unable to cancel timer for ${RELAY_NAMES[relayKey]}.`;
   }
 }
 
@@ -133,7 +277,7 @@ async function turnOffAllDevices() {
       set(ref(database, "relays/relay1"), true),
       set(ref(database, "relays/relay2"), true),
       set(ref(database, "relays/relay3"), true),
-      set(ref(database, "relays/relay4"), true)
+      set(ref(database, "relays/relay4"), true),
     ]);
     console.log("✅ All devices turned off");
     return "All devices have been turned off! 🔌";
@@ -149,7 +293,8 @@ async function turnOnAllDevices() {
     await Promise.all([
       set(ref(database, "relays/relay1"), false),
       set(ref(database, "relays/relay2"), false),
-      set(ref(database, "relays/relay3"), false)
+      set(ref(database, "relays/relay3"), false),
+      set(ref(database, "relays/relay4"), false),
     ]);
     console.log("✅ All devices turned on");
     return "All lights and fan have been turned on! ✨";
@@ -166,6 +311,62 @@ async function handleCommand(userMessage) {
   const msg = userMessage.toLowerCase().trim();
 
   console.log(`🎤 Processing command: "${msg}"`);
+
+  // ===== TIMER COMMANDS =====
+
+  // Check for timer status query
+  if (msg.includes("timer") && (msg.includes("status") || msg.includes("active") || msg.includes("what") || msg.includes("check"))) {
+    return await getActiveTimersStatus();
+  }
+
+  // Check for cancel timer command
+  if (msg.includes("cancel") && msg.includes("timer")) {
+    const relay = findRelayFromText(msg);
+    if (relay) {
+      return await cancelRelayTimerFromChat(relay);
+    }
+    return "Please specify which device timer to cancel. For example: 'cancel light 1 timer'";
+  }
+
+  // Check for timer command: "turn on/off X for Y time"
+  const hasTimerKeyword = msg.includes("for ") || msg.includes("after ");
+  if (hasTimerKeyword) {
+    const duration = parseTimerDuration(msg);
+    if (duration.totalSeconds > 0) {
+      const relay = findRelayFromText(msg);
+      if (relay) {
+        // Determine action based on the command
+        const isTurningOn = msg.includes("on") || msg.includes("chalu") || msg.includes("jala");
+        const isTurningOff = msg.includes("off") || msg.includes("band") || msg.includes("bujha");
+
+        // "turn on X for Y" = turn on now, then OFF after Y
+        // "turn off X after Y" = turn off after Y
+        if (isTurningOn) {
+          // Turn on immediately, set timer to turn OFF
+          await set(ref(database, `relays/${relay}`), false); // ON (active low)
+          const timer = await setRelayTimerFromChat(relay, duration.hours, duration.minutes, duration.seconds, 'off');
+          if (timer) {
+            return `✅ ${RELAY_NAMES[relay]} turned ON! It will automatically turn OFF in ${formatDurationText(duration.totalSeconds)}. ⏰`;
+          }
+        } else if (isTurningOff) {
+          // Just set timer to turn off (don't turn on now)
+          const timer = await setRelayTimerFromChat(relay, duration.hours, duration.minutes, duration.seconds, 'off');
+          if (timer) {
+            return `✅ Timer set! ${RELAY_NAMES[relay]} will turn OFF in ${formatDurationText(duration.totalSeconds)}. ⏰`;
+          }
+        } else {
+          // If just "light 1 for 2 hours" without on/off, assume it's currently off, turn on and schedule off
+          await set(ref(database, `relays/${relay}`), false); // ON
+          const timer = await setRelayTimerFromChat(relay, duration.hours, duration.minutes, duration.seconds, 'off');
+          if (timer) {
+            return `✅ ${RELAY_NAMES[relay]} turned ON! It will automatically turn OFF in ${formatDurationText(duration.totalSeconds)}. ⏰`;
+          }
+        }
+      }
+    }
+  }
+
+  // ===== REGULAR COMMANDS =====
 
   // Turn on/off all devices
   if (msg.includes("sab") && msg.includes("band")) {

@@ -16,6 +16,7 @@ export interface UserSettings {
     };
     automation: {
         holidayMode: boolean;
+        motionLightsEnabled: boolean;
         motionAutoOffMinutes: number;
     };
     energy: {
@@ -27,7 +28,7 @@ export interface UserSettings {
 const defaultSettings: UserSettings = {
     sensors: { flameSensorEnabled: true, motionSensorEnabled: true, waterSensorEnabled: true },
     notifications: { masterEnabled: true, fireAlerts: true, motionAlerts: true, timerAlerts: true },
-    automation: { holidayMode: false, motionAutoOffMinutes: 5 },
+    automation: { holidayMode: false, motionLightsEnabled: true, motionAutoOffMinutes: 5 },
     energy: { unitPrice: 8.5, billingCycleStartDay: 1 },
 };
 
