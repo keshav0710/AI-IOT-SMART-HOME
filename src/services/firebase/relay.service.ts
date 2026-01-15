@@ -86,7 +86,7 @@ export async function turnOffAllRelays(): Promise<void> {
 }
 
 /**
- * Turn on all relays (excluding relay4)
+ * Turn on all relays (including relay4)
  */
 export async function turnOnAllRelays(): Promise<void> {
     try {
@@ -97,6 +97,7 @@ export async function turnOnAllRelays(): Promise<void> {
             set(ref(database, 'relays/relay1'), onValue),
             set(ref(database, 'relays/relay2'), onValue),
             set(ref(database, 'relays/relay3'), onValue),
+            set(ref(database, 'relays/relay4'), onValue),
         ]);
 
         console.log('✅ All devices turned on');

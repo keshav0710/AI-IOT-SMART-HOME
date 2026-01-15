@@ -23,6 +23,7 @@ interface SettingsState {
     };
     automation: {
         holidayMode: boolean;
+        motionLightsEnabled: boolean;
         motionAutoOffMinutes: number;
     };
     sensors: {
@@ -41,7 +42,7 @@ interface SettingsState {
 const defaultSettings: SettingsState = {
     general: { darkMode: false },
     energy: { unitPrice: 8.5, billingCycleStartDay: 1 },
-    automation: { holidayMode: false, motionAutoOffMinutes: 5 },
+    automation: { holidayMode: false, motionLightsEnabled: true, motionAutoOffMinutes: 5 },
     sensors: { flameSensorEnabled: true, motionSensorEnabled: true, waterSensorEnabled: true },
     notifications: { masterEnabled: true, fireAlerts: true, motionAlerts: true, timerAlerts: true },
 };
@@ -185,6 +186,16 @@ const SettingsPage: React.FC = () => {
                                 />
                             </div>
                             <Separator />
+                            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border/50">
+                                <div>
+                                    <Label className="font-semibold">Motion-Activated Lights</Label>
+                                    <p className="text-xs text-muted-foreground">Automatically turn on lights when motion is detected.</p>
+                                </div>
+                                <Switch
+                                    checked={settings.automation.motionLightsEnabled}
+                                    onCheckedChange={(v) => updateSetting('automation', 'motionLightsEnabled', v)}
+                                />
+                            </div>
                             <div className="space-y-3">
                                 <Label className="font-semibold">Motion Auto-Off Timer: {settings.automation.motionAutoOffMinutes} min</Label>
                                 <Slider

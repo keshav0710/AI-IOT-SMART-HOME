@@ -34,7 +34,7 @@ export const WATER_TANK_THRESHOLDS = {
 
 // UI Text
 export const UI_TEXT = {
-    WELCOME_MESSAGE: "Hello! I'm your AI-powered smart home assistant. I can help you control devices, check status, and answer questions. Try 'turn on light 1' or 'check water level'!",
+    WELCOME_MESSAGE: "Hello! I'm your AI-powered smart home assistant.",
     CHATBOT_PLACEHOLDER: "Ask me anything about your home...",
     CHATBOT_SUGGESTIONS: "• \"Turn on light 1\" • \"Check water level\" • \"Fan status\" • \"Turn off all lights\"",
 } as const;

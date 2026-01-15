@@ -5,8 +5,13 @@ import { Home } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useSensorData } from '../hooks/useSensorData';
 import { useRelayControl } from '../hooks/useRelayControl';
+import { useRelayTimers } from '../hooks/useRelayTimers';
+import { useMotionAutomation } from '../hooks/useMotionAutomation';
 import { useChatbot } from '../hooks/useChatbot';
 import { useSettings } from '../hooks/useSettings';
+
+// Services
+import { turnOnAllRelays, turnOffAllRelays } from '../services/firebase/relay.service';
 
 // Components
 import { DashboardHeader } from '../components/layout/DashboardHeader';
@@ -15,6 +20,7 @@ import { WaterTankCard } from '../components/dashboard/WaterTankCard';
 import { ElectricityCard } from '../components/dashboard/ElectricityCard';
 import { RelayControlCard } from '../components/dashboard/RelayControlCard';
 import { SecurityCard } from '../components/dashboard/SecurityCard';
+import { CameraCard } from '../components/dashboard/CameraCard';
 import { ChatbotCard } from '../components/dashboard/ChatbotCard';
 
 // Utils
@@ -24,8 +30,18 @@ const Dashboard: React.FC = () => {
   const { user, loading, logout } = useAuth();
   const { sensorData, connectionStatus } = useSensorData(user?.uid || null);
   const { relayStates, toggleRelay } = useRelayControl(user?.uid || null);
+  const { activeTimers, remainingTimes, setTimer, cancelTimer } = useRelayTimers(user?.uid || null);
   const { messages, isTyping, sendMessage } = useChatbot(user?.uid || null);
   const { settings } = useSettings(user?.uid || null);
+
+  // Motion automation - turns on lights when motion detected, auto-off after timeout
+  useMotionAutomation({
+    sensorData,
+    motionSensorEnabled: settings.sensors.motionSensorEnabled,
+    motionAutoEnabled: settings.automation?.motionLightsEnabled ?? true,
+    autoOffMinutes: settings.automation?.motionAutoOffMinutes ?? 5,
+    holidayMode: settings.automation?.holidayMode ?? false,
+  });
 
   const [speechVolume, setSpeechVolume] = useState<number>(1.0);
 
@@ -66,9 +82,10 @@ const Dashboard: React.FC = () => {
       {/* Alerts */}
       <DashboardAlerts sensorData={sensorData} waterTankStatus={waterTankStatus} />
 
-      {/* Main Dashboard Grid */}
+      {/* Main Dashboard Grid - 2 Rows x 3 Columns */}
       <main className="max-w-7xl mx-auto p-4 mt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Row 1 */}
           {/* Water Level Monitoring */}
           <WaterTankCard
             waterLevel={sensorData.waterLevel}
@@ -86,8 +103,18 @@ const Dashboard: React.FC = () => {
           />
 
           {/* Relay Control */}
-          <RelayControlCard relayStates={relayStates} onToggle={toggleRelay} />
+          <RelayControlCard
+            relayStates={relayStates}
+            onToggle={toggleRelay}
+            activeTimers={activeTimers}
+            remainingTimes={remainingTimes}
+            onSetTimer={setTimer}
+            onCancelTimer={cancelTimer}
+            onAllOn={turnOnAllRelays}
+            onAllOff={turnOffAllRelays}
+          />
 
+          {/* Row 2 */}
           {/* Security & Sensors */}
           <SecurityCard
             flameDetected={sensorData.flameDetected}
@@ -95,6 +122,13 @@ const Dashboard: React.FC = () => {
             lastUpdated={sensorData.lastUpdated}
             flameSensorEnabled={settings.sensors.flameSensorEnabled}
             motionSensorEnabled={settings.sensors.motionSensorEnabled}
+          />
+
+          {/* Security Camera */}
+          <CameraCard
+            isConnected={false}
+            motionTriggered={sensorData.motionDetected}
+            fireTriggered={sensorData.flameDetected}
           />
 
           {/* AI Chatbot */}
