@@ -24,7 +24,7 @@ export function useRelayControl(userId: string | null): UseRelayControlReturn {
 
         const cleanup = listenToRelayStates(
             (states) => {
-                setRelayStates(states as RelayStates);
+                setRelayStates(states);
             },
             (error) => {
                 console.error('Error reading relay data:', error);

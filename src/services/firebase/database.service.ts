@@ -1,7 +1,7 @@
 import { ref, get, onValue, off, DataSnapshot } from 'firebase/database';
 import { database } from './config';
 import { FIREBASE_PATHS } from '../../utils/constants';
-import type { SensorData } from '../../types/sensor.types';
+import type { SensorData, RelayStates } from '../../types/sensor.types';
 
 /**
  * Get current sensor data snapshot
@@ -117,7 +117,7 @@ export function listenToSensorData(
  * @returns Cleanup function to remove listener
  */
 export function listenToRelayStates(
-    callback: (states: Record<string, boolean>) => void,
+    callback: (states: RelayStates) => void,
     onError?: (error: Error) => void
 ): () => void {
     const relaysRef = ref(database, FIREBASE_PATHS.RELAYS);

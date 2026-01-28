@@ -1,7 +1,8 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getDatabase, ref, set, onValue } from "firebase/database";
 import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { getFirestore } from "firebase/firestore"; // 
+import { getFirestore } from "firebase/firestore";
+
 // Firebase configuration - Using environment variables for security
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,18 +14,17 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-
 // ✅ Prevent multiple Firebase instances
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 // ✅ Initialize services
 const database = getDatabase(app);
 const auth = getAuth(app);
-const db = getFirestore(app); // ✅ Firestore instance added
+const db = getFirestore(app);
 
 // ✅ Export all
 export {
-  db, // <-- this fixes the chatbot import
+  db,
   database,
   auth,
   ref,
