@@ -34,11 +34,21 @@ FirebaseConfig config;
 #define CURRENT_SENSOR A3    // Analog pin for current sensor (e.g., ACS712)
 
 // 📊 Sensor Calibration Constants
-const float VOLTAGE_CALIBRATION = 234.26;  // Calibration factor for voltage sensor
-const float CURRENT_CALIBRATION = 0.066;   // For ACS712-30A: 66mV per Amp
-const float VOLTAGE_OFFSET = 2500.0;       // ADC offset (usually 2.5V for 5V systems)
+// For ZMPT101B: V_RMS = (ADC_RMS * V_REF / ADC_RES) * CALIBRATION_FACTOR
+// Adjust this value based on a known voltage source (e.g., multimeter reading / code reading)
+const float VOLTAGE_CALIBRATION = 675.0;  
+
+// For ACS712: 
+// 30A model: 66mV/A -> 0.066 V/A
+// 20A model: 100mV/A -> 0.100 V/A
+// 5A model:  185mV/A -> 0.185 V/A
+const float CURRENT_SENSITIVITY = 0.066; // Volts per Amp (for 30A model)
+
+// ADC Parameters
 const int ADC_RESOLUTION = 4096;           // 12-bit ADC resolution
 const float ADC_VOLTAGE = 3.3;             // ESP32 ADC reference voltage
+const int ADC_OFFSET_V = 1850;             // Zero-point offset for Voltage sensor (approx. half of ADC range)
+const int ADC_OFFSET_I = 1850;             // Zero-point offset for Current sensor
 
 // ⏳ Timer Variables
 #define UPDATE_INTERVAL 2000  // 2 seconds for sensor readings
@@ -105,6 +115,8 @@ void setup() {
     pinMode(RELAY4, OUTPUT);
 
     // Initialize analog pins (ESP32 doesn't need pinMode for analog)
+    // Note: ADC2 pins (GPIO 0, 2, 4, 12-15, 25-27) cannot be used when WiFi is active.
+    // GPIO 36 (VP) and 39 (VN) are on ADC1, so they are safe to use with WiFi.
     Serial.println("Voltage Sensor on pin A0 (GPIO36)");
     Serial.println("Current Sensor on pin A3 (GPIO39)");
 
@@ -193,58 +205,109 @@ void loop() {
     }
 }
 
-// ⚡ Read Voltage and Current Sensors
+// ⚡ Read Voltage and Current Sensors using RMS
 void readVoltageCurrent() {
-    // 🔋 Voltage Sensor Reading (ZMPT101B or similar)
-    int voltageRaw = 0;
-    int currentRaw = 0;
+    // 1. Calculate Voltage (RMS)
+    float voltageRMS = getRMSVoltage();
     
-    // Take multiple readings for accuracy
-    for(int i = 0; i < 100; i++) {
-        voltageRaw += analogRead(VOLTAGE_SENSOR);
-        currentRaw += analogRead(CURRENT_SENSOR);
-        delayMicroseconds(100);
-    }
+    // 2. Calculate Current (RMS)
+    float currentRMS = getRMSCurrent();
     
-    voltageRaw = voltageRaw / 100;  // Average
-    currentRaw = currentRaw / 100;  // Average
-
-    // Convert ADC reading to voltage
-    float voltageADC = (voltageRaw * ADC_VOLTAGE) / ADC_RESOLUTION;
-    float currentADC = (currentRaw * ADC_VOLTAGE) / ADC_RESOLUTION;
-
-    // Calculate actual voltage (for ZMPT101B voltage sensor)
-    // Adjust VOLTAGE_CALIBRATION based on your specific sensor and setup
-    voltage = voltageADC * VOLTAGE_CALIBRATION;
-
-    // Calculate actual current (for ACS712 current sensor)
-    // ACS712-5A: 185mV/A, ACS712-20A: 100mV/A, ACS712-30A: 66mV/A
-    current = abs((currentADC - (ADC_VOLTAGE/2)) / CURRENT_CALIBRATION);
+    // 3. Assign to global variables
+    voltage = voltageRMS;
+    current = currentRMS;
     
-    // Noise filtering - ignore very small currents
-    if (current < 0.1) {
-        current = 0.0;
-    }
-    
-    // Calculate power
+    // 4. Calculate Power (Apparent Power = V * I)
+    // Note: For Real Power (Watts), you need to account for Power Factor (PF). 
+    // Ideally P = V_rms * I_rms * PF.  Assuming PF ~ 0.9 for common loads or just using Apparent Power (VA) as estimate.
     power = voltage * current;
 
     // 📊 Print readings
-    Serial.print("Voltage ADC: ");
-    Serial.print(voltageADC);
-    Serial.print("V -> Actual Voltage: ");
+    Serial.print("Voltage: ");
     Serial.print(voltage);
-    Serial.println("V");
+    Serial.println(" V");
     
-    Serial.print("Current ADC: ");
-    Serial.print(currentADC);
-    Serial.print("V -> Actual Current: ");
+    Serial.print("Current: ");
     Serial.print(current);
-    Serial.println("A");
+    Serial.println(" A");
     
     Serial.print("Power: ");
     Serial.print(power);
-    Serial.println("W");
+    Serial.println(" W");
+}
+
+// Helper: Calculate RMS Voltage
+float getRMSVoltage() {
+    int readValue;             // Raw ADC reading
+    unsigned long startMillis = millis();
+    float sumSquares = 0;
+    int sampleCount = 0;
+    
+    // Sample for 200ms (10 cycles at 50Hz, 12 cycles at 60Hz)
+    while (millis() - startMillis < 200) {
+        readValue = analogRead(VOLTAGE_SENSOR);
+        // Correct for ADC offset (centering the wave at 0)
+        // Ideally, calibration is needed to find the exact zero point.
+        // For a 3.3V ADC with a offset at VCC/2, midpoint is ~2048.
+        // However, ZMPT modules often have a potentiometer to set the offset. 
+        // We use a high-pass filter implication or just subtract the average if known.
+        // Simple approach: remove the DC bias (approx 1800-2000 usually)
+        
+        float voltageInst = readValue - ADC_OFFSET_V; 
+        sumSquares += voltageInst * voltageInst;
+        sampleCount++;
+    }
+    
+    if (sampleCount == 0) return 0.0;
+    
+    float meanSquare = sumSquares / sampleCount;
+    float rootMeanSquare = sqrt(meanSquare);
+    
+    // Convert ADC RMS to Voltage RMS
+    // Formula: V_measured = (RMS_ADC * V_REF / ADC_RES) * CALIB_FACTOR
+    float voltage_rms = (rootMeanSquare * ADC_VOLTAGE / ADC_RESOLUTION) * VOLTAGE_CALIBRATION;
+    
+    // Noise suppression
+    if (voltage_rms < 5.0) voltage_rms = 0.0;
+    
+    return voltage_rms;
+}
+
+// Helper: Calculate RMS Current
+float getRMSCurrent() {
+    int readValue;
+    unsigned long startMillis = millis();
+    float sumSquares = 0;
+    int sampleCount = 0;
+    
+    while (millis() - startMillis < 200) {
+        readValue = analogRead(CURRENT_SENSOR);
+        // ACS712 outputs VCC/2 at 0A. For 5V VCC, that's 2.5V.
+        // For ESP32 (3.3V max), you MUST use a voltage divider (e.g. 1k:2k) to map 5V -> 3.3V.
+        // If connected directly (NOT RECOMMENDED), it clips.
+        // Assuming proper scaling or 3.3V version, the offset varies.
+        
+        float currentInst = readValue - ADC_OFFSET_I;
+        sumSquares += currentInst * currentInst;
+        sampleCount++;
+    }
+    
+    if (sampleCount == 0) return 0.0;
+    
+    float meanSquare = sumSquares / sampleCount;
+    float rootMeanSquare = sqrt(meanSquare);
+    
+    // Convert ADC RMS to Voltage RMS (at the pin)
+    float voltage_rms_pin = (rootMeanSquare * ADC_VOLTAGE / ADC_RESOLUTION);
+    
+    // Convert Voltage RMS to Current RMS
+    // Amps = Volts / Sensitivity
+    float current_rms = voltage_rms_pin / CURRENT_SENSITIVITY;
+    
+    // Noise suppression
+    if (current_rms < 0.15) current_rms = 0.0;
+    
+    return current_rms;
 }
 
 // ⚡ ADD: Calculate energy consumption (kWh)

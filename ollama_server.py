@@ -19,18 +19,25 @@ For greetings: Respond naturally and briefly.
 For questions: Give concise, accurate answers using current data.
 For unrelated topics: Say "I can only help with the Smart Home project."
 
-Topics you know: ESP32, sensors (PIR, flame, ultrasonic, PZEM), relays, Firebase, Blynk, Google Assistant integration.
+Topics you know:
+- Hardware: ESP32, PIR sensor, flame sensor, HC-SR04 ultrasonic, ACS712 current sensor, ZMPT101B voltage sensor, relay modules, LEDs, buzzer
+- Energy: voltage (V), current (A), power (W), energy (kWh), electricity bill calculation at ₹8.5/kWh
+- Software: Firebase Realtime Database, React dashboard, Ollama AI, Flask proxy server
+- Automation: motion-activated lights, relay timers, holiday mode, relay control
+- Alerts: fire detection, motion alerts, water tank overflow/empty warnings
 """
 
 # Keywords to roughly detect if a question is about the project
 PROJECT_KEYWORDS = [
     "smart home", "smarthome", "esp32", "esp32-cam", "firebase",
-    "relay", "relays", "pzem", "pzem-004t", "pir", "flame sensor",
-    "ultrasonic", "distance sensor", "water level", "blynk",
+    "relay", "relays", "acs712", "zmpt101b", "pir", "flame sensor",
+    "ultrasonic", "distance sensor", "water level", "water tank",
     "led1", "led2", "pump", "iot", "home automation",
-    "dashboard", "sensor", "sensors", "chatbot", "google assistant",
+    "dashboard", "sensor", "sensors", "chatbot",
     "light", "fan", "power", "voltage", "current", "water", "tank",
-    "motion", "fire", "device", "control", "status"
+    "motion", "fire", "device", "control", "status",
+    "energy", "kwh", "electricity", "bill", "units", "rupee",
+    "watt", "ampere", "volt", "cost", "price", "consumption"
 ]
 
 BLOCK_MESSAGE = "I can only answer questions about the Smart Home project."
@@ -100,7 +107,7 @@ def ollama_proxy():
                 'system': PROJECT_SYSTEM_PROMPT,  # 🔒 System prompt restriction
                 'stream': False
             },
-            timeout=60
+            timeout=180  # llama3 needs more time than phi3
         )
         
         if ollama_response.status_code != 200:
@@ -189,7 +196,7 @@ def ollama_chat():
                 'messages': messages,
                 'stream': False
             },
-            timeout=60
+            timeout=180  # llama3 needs more time than phi3
         )
         
         if ollama_response.status_code != 200:

@@ -16,6 +16,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     connectionStatus,
     onLogout,
 }) => {
+    const isOnline = connectionStatus === 'Connected' ||
+        connectionStatus === 'Live - Data Updated' ||
+        connectionStatus.toLowerCase().startsWith('live');
+
     const navigate = useNavigate();
 
     return (
@@ -32,11 +36,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                             </h1>
                             <div className="flex items-center gap-2">
                                 <span className="flex h-2 w-2 relative">
-                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                    <span className={`relative inline-flex rounded-full h-2 w-2 ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                    <span className={`relative inline-flex rounded-full h-2 w-2 ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                 </span>
                                 <span className="text-xs text-muted-foreground font-medium">
-                                    {connectionStatus === 'connected' ? 'System Online' : 'Offline'}
+                                    {isOnline ? 'System Online' : connectionStatus}
                                 </span>
                             </div>
                         </div>
