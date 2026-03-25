@@ -20,6 +20,7 @@ export async function getSensorData(): Promise<Partial<SensorData> | null> {
             voltage: data.voltage || 0,
             current: data.current || 0,
             power: data.power || 0,
+            totalEnergyKwh: data.totalEnergyKwh || 0,
             flameDetected: Boolean(data.flame),
             motionDetected: Boolean(data.motion),
             lastUpdated: data.timestamp || Date.now(),
@@ -59,8 +60,9 @@ export async function getAllSensorDataString(): Promise<string> {
         return (
             `Current system status:\n\n` +
             `* Voltage: ${data.voltage?.toFixed(1) || 'N/A'}V\n` +
-            `* Current: ${data.current?.toFixed(1) || 'N/A'}A\n` +
+            `* Current: ${data.current?.toFixed(2) || 'N/A'}A\n` +
             `* Power: ${data.power?.toFixed(1) || 'N/A'}W\n` +
+            `* Total Energy: ${data.totalEnergyKwh?.toFixed(4) || 'N/A'} kWh\n` +
             `* Flame sensor: ${data.flame ? '🔥 FIRE DETECTED!' : '✓ Safe'}\n` +
             `* Motion sensor: ${data.motion ? '👤 Motion detected' : '✓ No motion'}\n` +
             `* Water distance: ${data.distance?.toFixed(1) || 'N/A'}cm`

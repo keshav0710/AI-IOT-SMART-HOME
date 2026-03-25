@@ -1,416 +1,410 @@
-# AI IoT Smart Home System
+# 🏠 Smart Home Automation Platform
 
-A comprehensive Smart Home Automation system built with IoT hardware, web technologies, and AI integration. Control and monitor your home devices in real-time through an intelligent web dashboard.
-
----
-
-## 🎯 Project Overview
-
-This college project demonstrates a complete IoT ecosystem featuring:
-- **Real-time device control** via web dashboard
-- **Sensor monitoring** with instant alerts
-- **AI-powered chatbot** for natural language control
-- **Voice commands** for hands-free operation
-- **Smart automation** based on sensor triggers
-- **Energy monitoring** and cost tracking
-- **Scheduling** and scene management
+> A full-stack IoT system built with **ESP32**, **Firebase Realtime Database**, **React + TypeScript**, and a **local AI assistant (Ollama)** for real-time device monitoring, control, and natural language automation.
 
 ---
 
-## ✨ Core Features
+## 📸 Overview
 
-### 🔔 Smart Notifications (FCM)
-- Push notifications to Android/iOS devices
-- Fire detection instant alerts
-- Motion detection notifications
-- Timer completion alerts
-- Background notification support
+This project is a complete smart home solution that bridges physical hardware (ESP32 microcontroller + sensors) with a modern web dashboard. Users can monitor live sensor data, control appliances remotely, set automation timers, and interact with an AI chatbot — all in real-time.
 
-### 🔥 Fire Detection System
-- Real-time fire sensor monitoring
-- Instant push notifications
-- Visual dashboard alerts
-- Buzzer/alarm triggers
-- Emergency response ready
+---
 
-### 🚶 Motion-Based Automation
-- Auto lights ON when motion detected
-- Configurable auto-off timer
-- Enable/disable motion mode
-- Motion event notifications
-- Smart lighting control
+## ✨ Features
 
-### ⚡ Relay Control & Timers
-- Individual relay ON/OFF control
-- "All Lights" master switch
-- Duration-based timers (e.g., "4 hours")
-- Timer status display
-- Auto shutoff on completion
-- Cancel active timers
+### 🔌 Hardware Integration
+- **4 Relay Outputs** — Control 2 lights, 1 fan, and 1 extra appliance
+- **PIR Motion Sensor** — Detects movement and triggers automation
+- **HC-SR04 Ultrasonic Sensor** — Measures water tank level via distance
+- **Flame Sensor** — Fire detection with buzzer alert
+- **ZMPT101B Voltage Sensor** — Measures AC mains voltage (RMS)
+- **ACS712 30A Current Sensor** — Measures AC current draw (RMS)
+- **EEPROM Persistence** — Energy data survives ESP32 reboots
 
-### 🎤 Voice Control
-- Web Speech API integration
-- Voice-to-text conversion
-- Natural language commands
-- Microphone button in chatbot
-- Visual listening indicator
-- Multi-language support (English/Hindi)
+### 📊 Real-Time Dashboard
+- Live sensor data updates via Firebase WebSocket listeners
+- Water tank level with visual fill indicator and overflow/empty alerts
+- Electricity monitoring: Voltage, Current, Power (W), Energy (kWh), Cost (₹)
+- Security panel: Motion and flame detection status
+- Device control panel with individual toggle switches
+- Timer automation: Set countdown timers per device (5m, 15m, 30m, 1h, 2h, 4h presets)
+- One-click "All ON / All OFF" bulk control
+- Authentication (Firebase Auth — email/password)
 
-### 💬 AI Chatbot
-- Natural language processing
-- Device control via text/voice
-- Timer management commands
-- System status queries
-- Ollama LLM integration
-- Context-aware responses
+### 🤖 AI Chatbot + Voice Assistant
+- Local LLM via **Ollama** (Phi-3 model) — no internet or API keys required
+- Natural language device control: *"Turn on fan for 2 hours"*, *"Light 1 off"*
+- Bilingual support: English + Hindi (Hinglish) — *"pankha band karo"*, *"light chalu"*
+- Context-aware responses with live sensor data injected into LLM prompt
+- **Voice input** via Web Speech Recognition API
+- **Voice output** via Web Speech Synthesis API
+- Timer management via chat: set, check, and cancel device timers
 
-### 📊 Energy Monitoring
-- Track relay power consumption
-- Set electricity cost (₹/kWh)
-- Calculate usage costs
-- Energy usage dashboard
-- Cost estimation
-
-### ⏰ Scheduling & Automation
-- Schedule relay ON/OFF by time
-- Daily/weekly recurring schedules
-- Conditional automation rules
-- Holiday mode toggle
-- Disable automations when away
-
-### 🎬 Scene Management
-- Create custom scenes
-- Control multiple devices at once
-- One-tap scene activation
-- Quick-access scene buttons
-- Save favorite configurations
-
-### 🌡️ Weather Integration
-- Local weather display
-- Weather-based automation
-- Temperature-triggered actions
-- Weather data on dashboard
-
-### 📈 Usage Analytics
-- Device usage statistics
-- Frequently used devices
-- Peak usage times
-- Usage patterns insights
-
-### 🌙 Dark Mode
-- Manual theme toggle
-- System theme detection
-- Dark mode across all UI
-- Eye-friendly interface
-
-### 🎛️ Dashboard Customization
-- Quick toggle widgets
-- Compact/expanded views
-- Customizable layout
-- Responsive design
-
-### 📡 Device Health Monitoring
-- Online/offline status
-- Connectivity checks
-- Offline device alerts
-- Connection quality metrics
-
-### 📷 Camera Support (Future-Ready)
-- Camera device schema ready
-- UI placeholders prepared
-- Motion-triggered capture design
-- Fire snapshot architecture
+### ⚙️ Automation
+- **Motion-triggered lighting** — Auto turn on lights when motion detected
+- **Auto-off timeout** — Lights auto-off after configurable minutes (default: 5 min)
+- **Holiday Mode** — Suppresses motion automation when away
+- **Timer-based scheduling** — Per-device countdown timers synced through Firebase
+- **Fire alert** — Buzzer activates on flame detection; dashboard shows critical alert
 
 ---
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **React** + **TypeScript**
-- **Vite** (build tool)
-- **Tailwind CSS** (styling)
-- **shadcn-ui** (component library)
-- **Lucide React** (icons)
-- **React Query** (data fetching)
-
-### Backend & Services
-- **Firebase Authentication**
-- **Firebase Realtime Database**
-- **Firebase Cloud Firestore**
-- **Firebase Cloud Functions**
-- **Firebase Cloud Messaging (FCM)**
-
-### AI & Voice
-- **Ollama** (LLM for chatbot)
-- **Web Speech API** (voice recognition)
-- **Natural Language Processing**
-
-### Hardware
-- **ESP32** microcontroller
-- **PIR Motion Sensor**
-- **Flame Sensor**
-- **Ultrasonic Sensor** (water level)
-- **Relay Modules** (4-channel)
-- **Current/Voltage Sensors**
+| Layer | Technology |
+|---|---|
+| **Microcontroller** | ESP32 (Arduino C++) |
+| **Sensors** | PIR, HC-SR04, Flame, ZMPT101B, ACS712 |
+| **Database** | Firebase Realtime Database |
+| **Authentication** | Firebase Auth |
+| **Frontend** | React 18 + TypeScript + Vite |
+| **UI Components** | shadcn/ui + Radix UI + Tailwind CSS |
+| **Routing** | React Router v6 |
+| **Charts** | Recharts |
+| **AI Model** | Ollama (Phi-3 — runs locally) |
+| **AI Proxy Server** | Python Flask + flask-cors |
+| **Voice Input** | Web Speech Recognition API |
+| **Voice Output** | Web Speech Synthesis API |
+| **Deployment** | Vercel (frontend) + Firebase (backend) |
 
 ---
 
-## 📁 Project Structure
+## 🗂️ Project Structure
 
 ```
 IOT NEW/
-├── src/
-│   ├── components/
-│   │   ├── dashboard/          # Dashboard components
-│   │   │   ├── ChatbotCard.tsx
-│   │   │   ├── RelayControlCard.tsx
-│   │   │   ├── SecurityCard.tsx
-│   │   │   ├── WaterTankCard.tsx
-│   │   │   └── ElectricityCard.tsx
-│   │   ├── ui/                 # shadcn-ui components
-│   │   └── layout/             # Layout components
-│   ├── hooks/
-│   │   ├── useAuth.ts
-│   │   ├── useSensorData.ts
-│   │   ├── useChatbot.ts
-│   │   ├── useFireAlerts.ts
-│   │   ├── useMotionAutomation.ts
-│   │   └── useRelayTimers.ts
-│   ├── services/
-│   │   ├── firebase/
-│   │   │   ├── database.service.ts
-│   │   │   ├── automation.service.ts
-│   │   │   └── timer.service.ts
-│   │   ├── fcm.service.ts
-│   │   └── notification.service.ts
-│   ├── types/
-│   │   ├── sensor.types.ts
-│   │   └── timer.types.ts
-│   ├── pages/
-│   │   ├── Dashboard.tsx
-│   │   ├── Login.tsx
-│   │   └── SettingsPage.tsx
-│   ├── chatbot.tsx             # AI chatbot logic
-│   ├── firebase.js             # Firebase config
-│   └── App.tsx
-├── public/
-│   └── firebase-messaging-sw.js # FCM service worker
-├── functions/                   # Cloud Functions
-│   └── src/
-│       └── index.ts
-├── .env                         # Environment variables
-└── package.json
+├── esp32_energy_code.ino       # ESP32 firmware (Arduino C++)
+├── ollama_server.py            # Python Flask proxy for Ollama AI
+├── .env.example                # Environment variable template
+├── package.json                # Node dependencies
+├── vite.config.ts              # Vite build config
+└── src/
+    ├── firebase.js             # Firebase initialization
+    ├── chatbot.tsx             # Chatbot engine + command handler
+    ├── App.tsx                 # App entry + routing
+    ├── components/
+    │   ├── dashboard/
+    │   │   ├── WaterTankCard.tsx       # Water level UI
+    │   │   ├── ElectricityCard.tsx     # Power monitoring UI
+    │   │   ├── RelayControlCard.tsx    # Device toggles + timers
+    │   │   ├── SecurityCard.tsx        # Motion + flame status
+    │   │   ├── CameraCard.tsx          # Camera feed placeholder
+    │   │   └── ChatbotCard.tsx         # AI chat UI + mic button
+    │   └── layout/
+    │       ├── DashboardHeader.tsx
+    │       └── DashboardAlerts.tsx
+    ├── pages/
+    │   ├── Dashboard.tsx       # Main dashboard page
+    │   ├── Login.tsx           # Login page
+    │   ├── SettingsPage.tsx    # Settings (sensors, automation, energy)
+    │   └── relays.tsx          # Relay management page
+    ├── hooks/
+    │   ├── useSensorData.ts        # Firebase real-time sensor listener
+    │   ├── useRelayControl.ts      # Relay toggle logic
+    │   ├── useRelayTimers.ts       # Timer state + countdown
+    │   ├── useMotionAutomation.ts  # Motion-triggered automation
+    │   ├── useChatbot.ts           # Chatbot state management
+    │   ├── useVoiceInput.ts        # Web Speech API hook
+    │   ├── useAuth.ts              # Firebase auth hook
+    │   ├── useSettings.ts          # User settings hook
+    │   └── useWeather.ts           # Weather API hook
+    ├── services/
+    │   └── firebase/
+    │       ├── database.service.ts  # Sensor read + real-time listeners
+    │       └── relay.service.ts     # Relay write operations
+    ├── utils/
+    │   ├── water-tank.utils.ts      # Water level calculation helpers
+    │   └── constants.ts             # Firebase paths, device names
+    └── types/
+        └── sensor.types.ts          # TypeScript interfaces
 ```
+
+---
+
+## ⚡ Firebase Realtime Database Structure
+
+```json
+{
+  "sensors": {
+    "voltage": 230.5,
+    "current": 1.2,
+    "power": 276.6,
+    "totalEnergyKwh": 0.0234,
+    "distance": 18.3,
+    "motion": 0,
+    "flame": 0,
+    "timestamp": 1710000000
+  },
+  "relays": {
+    "relay1": false,
+    "relay2": false,
+    "relay3": true,
+    "relay4": false
+  },
+  "timers": {
+    "relay1": {
+      "relayKey": "relay1",
+      "endTime": 1710003600000,
+      "duration": 3600,
+      "action": "off",
+      "createdAt": 1710000000000
+    }
+  },
+  "commands": {
+    "resetEnergy": 0
+  }
+}
+```
+
+> **Note:** Relays use active-low logic. `false` in Firebase = relay physically ON. The frontend inverts this transparently.
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Firebase account (Blaze plan for Cloud Functions)
-- ESP32 with sensors setup
-- Ollama installed (for chatbot)
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd "IOT NEW"
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Fill in your Firebase credentials:
-   ```env
-   VITE_FIREBASE_API_KEY=your_api_key
-   VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
-   VITE_FIREBASE_PROJECT_ID=your_project_id
-   VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   VITE_FIREBASE_APP_ID=your_app_id
-   VITE_FIREBASE_VAPID_KEY=your_vapid_key
-   VITE_OLLAMA_URL=http://localhost:11434
-   ```
-
-4. **Set up Firebase**
-   - Create a Firebase project
-   - Enable Authentication, Realtime Database, Firestore, and FCM
-   - Generate VAPID keys for web push
-   - Download service account key for Cloud Functions
-
-5. **Deploy Cloud Functions**
-   ```bash
-   cd functions
-   npm install
-   firebase deploy --only functions
-   ```
-
-6. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-7. **Start Ollama (for chatbot)**
-   ```bash
-   ollama serve
-   ollama pull phi3
-   ```
+- Node.js 18+
+- Python 3.8+
+- [Ollama](https://ollama.ai/) installed locally
+- Firebase project with Realtime Database enabled
+- Arduino IDE with ESP32 board support
 
 ---
 
-## 📱 Firebase Database Structure
+### 1. Clone the Repository
 
-### Realtime Database
+```bash
+git clone https://github.com/your-username/smart-home-iot.git
+cd smart-home-iot
+```
+
+---
+
+### 2. Configure Environment Variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your Firebase credentials:
+
+```env
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_DATABASE_URL=https://your-project-default-rtdb.firebasedatabase.app
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_OLLAMA_URL=http://localhost:5001/ollama
+VITE_OLLAMA_CHAT_URL=http://localhost:5001/ollama/chat
+```
+
+---
+
+### 3. Install Frontend Dependencies
+
+```bash
+npm install
+npm run dev
+```
+
+Dashboard will start at `http://localhost:5173`
+
+---
+
+### 4. Start the AI Proxy Server
+
+```bash
+# Install Python dependencies
+pip install flask flask-cors requests
+
+# Pull the AI model (first time only)
+ollama pull phi3
+
+# Start Ollama
+ollama serve
+
+# In a new terminal, start the proxy
+python ollama_server.py
+```
+
+Proxy server runs at `http://localhost:5001`
+
+---
+
+### 5. Flash ESP32 Firmware
+
+1. Open `esp32_energy_code.ino` in Arduino IDE
+2. Install required library: **Firebase ESP Client** by Mobizt
+3. Update WiFi credentials in the file:
+   ```cpp
+   char ssid[] = "YOUR_WIFI_SSID";
+   char pass[] = "YOUR_WIFI_PASSWORD";
+   ```
+4. Update Firebase credentials:
+   ```cpp
+   #define API_KEY "your_firebase_api_key"
+   #define DATABASE_URL "https://your-project-rtdb.firebaseio.com"
+   ```
+5. Select **ESP32 Dev Module** board, choose the correct COM port
+6. Upload the sketch
+
+---
+
+## 🔌 ESP32 Pin Configuration
+
+| Component | GPIO Pin |
+|---|---|
+| Ultrasonic TRIG | GPIO 5 |
+| Ultrasonic ECHO | GPIO 18 |
+| PIR Sensor | GPIO 21 |
+| Flame Sensor | GPIO 19 |
+| LED 1 | GPIO 25 |
+| LED 2 | GPIO 26 |
+| Buzzer | GPIO 27 |
+| Relay 1 (Light 1) | GPIO 23 |
+| Relay 2 (Light 2) | GPIO 22 |
+| Relay 3 (Fan) | GPIO 13 |
+| Relay 4 (Extra) | GPIO 12 |
+| Voltage Sensor | A0 (GPIO 36) |
+| Current Sensor | A3 (GPIO 39) |
+
+> **Important:** Voltage (GPIO 36) and Current (GPIO 39) sensors use ADC1 pins — safe to use with WiFi active. Never use ADC2 pins with WiFi enabled.
+
+---
+
+## 🤖 AI Chatbot — Example Commands
+
+| Command | Action |
+|---|---|
+| `"Turn on light 1"` | Relay 1 ON |
+| `"Fan off"` / `"pankha band"` | Relay 3 OFF |
+| `"Turn on fan for 2 hours"` | Relay 3 ON, timer set for 2 hrs |
+| `"Light off after 30 minutes"` | Sets timer to turn off relay 1 |
+| `"Sab band karo"` | Turn off ALL devices |
+| `"Check water level"` / `"pani kitna hai"` | Returns water tank status |
+| `"What is my electricity bill?"` | Returns kWh + ₹ cost estimate |
+| `"Status"` | Full sensor system report |
+| `"Timer status"` | Shows all active countdowns |
+| `"Cancel light 1 timer"` | Cancels the relay 1 countdown |
+
+---
+
+## 🌐 Deployment (Vercel)
+
+```bash
+# Build for production
+npm run build
+
+# Deploy to Vercel
+vercel --prod
+```
+
+Set all `VITE_FIREBASE_*` environment variables in your Vercel project settings.
+
+> The AI proxy (`ollama_server.py`) runs locally and is **not** deployed to Vercel — it requires Ollama running on the same machine.
+
+---
+
+## 🔐 Firebase Security Rules (Recommended)
+
 ```json
 {
-  "sensors": {
-    "flame": true/false,
-    "motion": true/false,
-    "waterLevel": 0-100,
-    "voltage": number,
-    "current": number,
-    "power": number
-  },
-  "relays": {
-    "relay1": true/false,
-    "relay2": true/false,
-    "relay3": true/false,
-    "relay4": true/false
-  },
-  "automation": {
-    "motionDetection": {
-      "enabled": true/false,
-      "timeout": 300000
-    }
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null"
   }
 }
 ```
 
-### Firestore Collections
-```
-users/{userId}
-  - email, displayName
-  - notificationPreferences
-  - energySettings
+---
 
-fcmTokens/{userId}/tokens/{tokenId}
-  - token, deviceType, createdAt
+## 📦 Key Dependencies
 
-timers/{userId}/{timerId}
-  - relayKey, duration, endTime, active
-
-scenes/{userId}/{sceneId}
-  - name, relays, createdAt
-
-schedules/{userId}/{scheduleId}
-  - relayKey, time, recurring, enabled
-
-notificationLogs/{logId}
-  - userId, type, message, timestamp
+```json
+{
+  "firebase": "^12.1.0",
+  "react": "^18.3.1",
+  "react-router-dom": "^6.30.1",
+  "react-speech-recognition": "^4.0.1",
+  "recharts": "^2.15.4",
+  "@tanstack/react-query": "^5.85.5"
+}
 ```
 
 ---
 
-## 🎮 Usage
+## 🐍 Python Server Dependencies
 
-### Web Dashboard
-1. Login with Firebase Authentication
-2. View real-time sensor data
-3. Control relays individually or all at once
-4. Set timers for automatic shutoff
-5. Create scenes for quick control
-6. Schedule automation rules
-7. Monitor energy consumption
-
-### Voice Commands
-- "Turn on light 1"
-- "Turn off all lights"
-- "Set timer for light 2 for 4 hours"
-- "What's the water level?"
-- "Show me the power consumption"
-- "Cancel timer for fan"
-
-### Chatbot Commands
-- Device control: "turn on/off [device]"
-- Timer management: "set timer for [device] [duration]"
-- Status queries: "water level", "is motion detected?"
-- Scene activation: "activate movie mode"
+```bash
+pip install flask flask-cors requests
+```
 
 ---
 
-## 🔐 Security Features
+## 📈 How Energy Monitoring Works
 
-- Firebase Authentication (email/password)
-- Environment variable protection
-- Secure FCM token management
-- Cloud Functions for server-side logic
-- HTTPS-only communication
-- Service worker for secure notifications
+The ESP32 samples the voltage and current sensors for **200ms per reading** (covering ~10 full AC cycles at 50Hz) and computes the **Root Mean Square (RMS)** value digitally:
 
----
+```
+V_rms = sqrt(mean(samples²)) × calibration_factor
+I_rms = sqrt(mean(samples²)) / sensitivity
+Power (W) = V_rms × I_rms
+Energy (kWh) += (Power / 1000) × elapsed_hours
+```
 
-## 📊 Monitoring & Analytics
-
-- Real-time device status
-- Energy consumption tracking
-- Usage pattern analysis
-- Cost estimation
-- Device health monitoring
-- Notification history
+Energy is saved to **EEPROM every 60 seconds** so it persists across power cuts and reboots.
 
 ---
 
-## 🎯 Future Enhancements
+## 🏗️ System Architecture
 
-- ESP32-CAM integration for live feed
-- Multi-user access with permissions
-- Geofencing automation
-- Google Assistant/Alexa integration
-- Mobile app (React Native)
-- Advanced ML-based predictions
+```
+┌─────────────────────────────────────────────────────┐
+│                    ESP32 Hardware                   │
+│  PIR │ Ultrasonic │ Flame │ Voltage │ Current │Relay│
+└──────────────────────┬──────────────────────────────┘
+                       │ Firebase SDK (WiFi)
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│           Firebase Realtime Database                │
+│     /sensors   /relays   /timers   /commands        │
+└──────────────────────┬──────────────────────────────┘
+                       │ onValue() WebSocket listener
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│         React Dashboard (Vercel)                    │
+│  WaterTank │ Electricity │ Relays │ Security │ Chat │
+└──────────────────────┬──────────────────────────────┘
+                       │ fetch() POST
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│     Python Flask Proxy (localhost:5001)             │
+│  CORS bridge │ Keyword filter │ System prompt inject│
+└──────────────────────┬──────────────────────────────┘
+                       │ HTTP
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│        Ollama LLM Server (localhost:11434)          │
+│               Phi-3 Model (local)                   │
+└─────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 🤝 Contributing
+## 👥 Authors
 
-This is a college project, but suggestions and improvements are welcome!
+- **Keshav** — Full stack development, ESP32 firmware, AI integration
+- **Chahat** — Firebase backend, hardware assembly, testing
 
 ---
 
 ## 📄 License
 
-This project is for educational purposes.
+This project is built as a college capstone project. Feel free to use it as a reference for your own IoT projects.
 
 ---
 
-## 👨‍💻 Author
-
-Developed as a college project demonstrating IoT, web development, and AI integration skills.
-
-> **Note**: The initial frontend structure was scaffolded using Lovable to speed up UI setup. All core logic, integrations, and project architecture are designed and implemented by me.
-
----
-
-## 🙏 Acknowledgments
-
-- Firebase for backend services
-- Ollama for AI capabilities
-- shadcn-ui for beautiful components
-- Lovable for initial UI scaffolding
-- ESP32 community for hardware support
-
----
-
-## 📞 Support
-
-For questions or issues, please refer to the implementation plan and task documentation in the `brain/` directory.
+> *Powered by Ollama AI • Connected to Firebase • ESP32 @ Heart*

@@ -1,0 +1,2244 @@
+# 🏠 AI IoT Smart Home - Complete Project Walkthrough
+
+> **Purpose**: Comprehensive end-to-end documentation for interview preparation. This document covers architecture, code explanations, interview questions, and design decisions.
+
+---
+
+## 📋 Table of Contents
+
+1. [React Fundamentals Tutorial](#1-react-fundamentals-tutorial)
+2. [Project Architecture Overview](#2-project-architecture-overview)
+3. [Technology Stack Deep Dive](#3-technology-stack-deep-dive)
+4. [Hardware Layer (ESP32)](#4-hardware-layer-esp32)
+5. [Firebase Integration](#5-firebase-integration)
+6. [Frontend React Application](#6-frontend-react-application)
+7. [Custom React Hooks](#7-custom-react-hooks)
+8. [AI Chatbot System](#8-ai-chatbot-system)
+9. [Push Notifications (FCM)](#9-push-notifications-fcm)
+10. [State Management & Data Flow](#10-state-management--data-flow)
+11. [Interview Questions & Answers](#11-interview-questions--answers)
+
+---
+
+## 1. React Fundamentals Tutorial
+
+> This section teaches React from basics to advanced using real examples from this IoT Smart Home project.
+
+### 1.1 What is React?
+
+React is a **JavaScript library** for building user interfaces. Key concepts:
+
+| Concept | Description |
+|---------|-------------|
+| **Component-based** | UI is split into reusable pieces |
+| **Declarative** | You describe WHAT to render, React handles HOW |
+| **Virtual DOM** | React tracks changes and updates only what's needed |
+| **Unidirectional** | Data flows from parent → child via props |
+
+### 1.2 JSX Syntax
+
+JSX is JavaScript that looks like HTML. It gets compiled to `React.createElement()` calls.
+
+**From this project** - [RelayControlCard.tsx](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/components/dashboard/RelayControlCard.tsx):
+
+```tsx
+// JSX looks like HTML but it's JavaScript
+return (
+    <Card className="card-premium h-full">
+        <CardHeader>
+            <CardTitle>Smart Controls</CardTitle>
+        </CardHeader>
+        <CardContent>
+            {/* Curly braces {} = JavaScript expressions */}
+            {(Object.keys(relayStates) as RelayKey[]).map((relayKey) => (
+                <div key={relayKey}>
+                    <span>{DEVICE_NAMES[relayKey]}</span>
+                    <Switch 
+                        checked={relayStates[relayKey]} 
+                        onCheckedChange={() => onToggle(relayKey)}
+                    />
+                </div>
+            ))}
+        </CardContent>
+    </Card>
+);
+```
+
+**JSX Rules:**
+1. **Single root element** - Wrap in `<div>` or `<>` (Fragment)
+2. **className, not class** - `class` is reserved in JavaScript
+3. **camelCase attributes** - `onClick`, `onChange`, not [onclick](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useFCM.ts#157-161)
+4. **Close all tags** - `<img />`, `<input />`, never `<img>`
+5. **Expressions in `{}`** - `{variable}`, `{1 + 2}`, `{condition && <Comp/>}`
+
+### 1.3 Components: Function vs Class
+
+Modern React uses **function components**. All components in this project are functions.
+
+```tsx
+// ✅ Function Component (Modern - used in this project)
+const SensorCard: React.FC<Props> = ({ voltage, current }) => {
+    return (
+        <div>
+            <p>Voltage: {voltage}V</p>
+            <p>Current: {current}A</p>
+        </div>
+    );
+};
+
+// ❌ Class Component (Legacy - not used in this project)
+class SensorCard extends React.Component<Props> {
+    render() {
+        return (
+            <div>
+                <p>Voltage: {this.props.voltage}V</p>
+            </div>
+        );
+    }
+}
+```
+
+**Why function components?**
+- Simpler syntax
+- Hooks (useState, useEffect) only work in functions
+- Easier to test
+- Better performance (no `this` binding)
+
+### 1.4 Props: Passing Data Down
+
+Props are **read-only** data passed from parent to child.
+
+**From this project** - Dashboard passes props to RelayControlCard:
+
+```tsx
+// Parent: Dashboard.tsx
+<RelayControlCard
+    relayStates={relayStates}           // Data from hook
+    onToggle={toggleRelay}              // Function from hook
+    activeTimers={activeTimers}
+    remainingTimes={remainingTimes}
+    onSetTimer={setTimer}
+    onCancelTimer={cancelTimer}
+    onAllOn={turnOnAll}
+    onAllOff={turnOffAll}
+/>
+
+// Child: RelayControlCard.tsx
+interface RelayControlCardProps {
+    relayStates: RelayStates;
+    onToggle: (relayKey: RelayKey) => void;
+    activeTimers?: ActiveTimers;
+    remainingTimes?: Record<RelayKey, number>;
+    onSetTimer?: (relayKey: RelayKey, hours: number, minutes: number, seconds: number, action: 'on' | 'off') => void;
+    onCancelTimer?: (relayKey: RelayKey) => void;
+    onAllOn?: () => void;
+    onAllOff?: () => void;
+}
+
+export const RelayControlCard: React.FC<RelayControlCardProps> = ({
+    relayStates,
+    onToggle,
+    activeTimers = {},        // Default value
+    remainingTimes = { relay1: 0, relay2: 0, relay3: 0, relay4: 0 },
+    onSetTimer,
+    onCancelTimer,
+    onAllOn,
+    onAllOff,
+}) => {
+    // Component uses these props
+};
+```
+
+**Props Best Practices:**
+- Props are **immutable** - never modify them
+- Use TypeScript interfaces for type safety
+- Provide default values with `= defaultValue`
+- Optional props use `propName?`
+
+### 1.5 State with useState
+
+State is **mutable** data that belongs to a component. When state changes, React re-renders.
+
+**From this project** - [useRelayControl.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useRelayControl.ts):
+
+```tsx
+import { useState } from 'react';
+
+export function useRelayControl(userId: string | null) {
+    // useState<Type>(initialValue) returns [value, setter]
+    const [relayStates, setRelayStates] = useState<RelayStates>({
+        relay1: false,
+        relay2: false,
+        relay3: false,
+        relay4: false,
+    });
+
+    // Update state with setter
+    const updateRelay = (key: RelayKey, value: boolean) => {
+        setRelayStates(prev => ({
+            ...prev,           // Spread previous state
+            [key]: value       // Update one property
+        }));
+    };
+
+    return { relayStates, updateRelay };
+}
+```
+
+**useState Patterns:**
+
+```tsx
+// 1. Simple state
+const [count, setCount] = useState(0);
+setCount(5);                    // Direct value
+setCount(prev => prev + 1);     // Functional update (safer)
+
+// 2. Object state
+const [user, setUser] = useState({ name: '', email: '' });
+setUser(prev => ({ ...prev, name: 'John' }));  // Merge, don't replace
+
+// 3. Array state
+const [items, setItems] = useState<string[]>([]);
+setItems(prev => [...prev, 'new item']);       // Add item
+setItems(prev => prev.filter(i => i !== 'x')); // Remove item
+
+// 4. Lazy initialization (expensive initial value)
+const [data, setData] = useState(() => expensiveCalculation());
+```
+
+### 1.6 Side Effects with useEffect
+
+`useEffect` runs code **after render**. Used for: API calls, subscriptions, DOM manipulation.
+
+**From this project** - [useSensorData.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useSensorData.ts):
+
+```tsx
+import { useEffect, useState } from 'react';
+
+export function useSensorData(userId: string | null) {
+    const [sensorData, setSensorData] = useState<SensorData>(initialState);
+
+    useEffect(() => {
+        // Skip if no user
+        if (!userId) return;
+
+        // This runs AFTER the component renders
+        const cleanup = listenToSensorData((data) => {
+            setSensorData(prev => ({ ...prev, ...data }));
+        });
+
+        // Cleanup function - runs before next effect or unmount
+        return cleanup;
+
+    }, [userId]);  // Dependency array - re-run when userId changes
+
+    return { sensorData };
+}
+```
+
+**useEffect Dependency Array:**
+
+```tsx
+// 1. Runs on EVERY render (usually wrong!)
+useEffect(() => {
+    console.log('Runs every render');
+});
+
+// 2. Runs ONCE on mount (empty array)
+useEffect(() => {
+    console.log('Runs once');
+    return () => console.log('Cleanup on unmount');
+}, []);
+
+// 3. Runs when dependencies change
+useEffect(() => {
+    console.log(`userId changed to ${userId}`);
+}, [userId]);
+
+// 4. Multiple dependencies
+useEffect(() => {
+    fetchData(userId, category);
+}, [userId, category]);  // Runs when EITHER changes
+```
+
+**Common useEffect Mistakes:**
+
+```tsx
+// ❌ WRONG: Missing dependency
+const [count, setCount] = useState(0);
+useEffect(() => {
+    const interval = setInterval(() => {
+        setCount(count + 1);  // 'count' is stale!
+    }, 1000);
+    return () => clearInterval(interval);
+}, []);  // count should be in dependencies
+
+// ✅ CORRECT: Use functional update
+useEffect(() => {
+    const interval = setInterval(() => {
+        setCount(prev => prev + 1);  // Always has latest value
+    }, 1000);
+    return () => clearInterval(interval);
+}, []);
+```
+
+### 1.7 useRef: Persistent Mutable Values
+
+`useRef` holds a value that **persists between renders** but **doesn't trigger re-renders**.
+
+**From this project** - [useMotionAutomation.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useMotionAutomation.ts):
+
+```tsx
+import { useRef } from 'react';
+
+export function useMotionAutomation({ sensorData, autoOffMinutes }) {
+    // These persist between renders but don't cause re-renders
+    const lastMotionTimeRef = useRef<number | null>(null);
+    const autoOffTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lightsOnRef = useRef(false);
+
+    useEffect(() => {
+        if (sensorData.motionDetected) {
+            lastMotionTimeRef.current = Date.now();  // Update ref
+
+            if (autoOffTimeoutRef.current) {
+                clearTimeout(autoOffTimeoutRef.current);  // Clear timer
+            }
+
+            if (!lightsOnRef.current) {  // Check ref
+                turnOnAllRelays();
+                lightsOnRef.current = true;  // Update ref
+            }
+        }
+    }, [sensorData.motionDetected]);
+}
+```
+
+**When to use useRef vs useState:**
+
+| Use Case | useState | useRef |
+|----------|----------|--------|
+| Value displayed in UI | ✅ | ❌ |
+| Value triggers re-render | ✅ | ❌ |
+| Timer/interval IDs | ❌ | ✅ |
+| Previous value tracking | ❌ | ✅ |
+| DOM element reference | ❌ | ✅ |
+| Latest callback reference | ❌ | ✅ |
+
+### 1.8 useCallback: Memoizing Functions
+
+`useCallback` returns a **memoized function** that only changes when dependencies change.
+
+**From this project** - [useRelayControl.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useRelayControl.ts):
+
+```tsx
+import { useCallback } from 'react';
+
+export function useRelayControl(userId: string | null) {
+    const [relayStates, setRelayStates] = useState<RelayStates>(/*...*/);
+
+    // Without useCallback: new function created every render
+    // Child components re-render even if nothing changed
+    
+    // With useCallback: same function reference unless dependencies change
+    const toggleRelay = useCallback(async (relayKey: RelayKey): Promise<void> => {
+        if (!userId) return;
+
+        try {
+            const newState = !relayStates[relayKey];
+            await toggleRelayService(relayKey, newState);
+        } catch (error) {
+            console.error(`Error toggling ${relayKey}:`, error);
+        }
+    }, [userId, relayStates]);  // Only recreate if these change
+
+    return { relayStates, toggleRelay };
+}
+```
+
+**Why useCallback matters:**
+
+```tsx
+// Parent re-renders → creates new toggleRelay → 
+// RelayControlCard thinks props changed → re-renders
+
+// With useCallback:
+// Parent re-renders → same toggleRelay reference → 
+// RelayControlCard props unchanged → skips re-render (if using memo)
+```
+
+### 1.9 useMemo: Memoizing Computed Values
+
+`useMemo` caches **expensive calculations** until dependencies change.
+
+```tsx
+import { useMemo } from 'react';
+
+function EnergyDashboard({ sensorData, pricePerKwh }) {
+    // Without useMemo: recalculates every render
+    // With useMemo: only recalculates when inputs change
+    
+    const energyCost = useMemo(() => {
+        // Expensive calculation
+        return sensorData.totalEnergyKwh * pricePerKwh;
+    }, [sensorData.totalEnergyKwh, pricePerKwh]);
+
+    // Memoize array/object creation to prevent child re-renders
+    const deviceStats = useMemo(() => [
+        { name: 'Light 1', power: sensorData.power * 0.25 },
+        { name: 'Light 2', power: sensorData.power * 0.25 },
+        { name: 'Fan', power: sensorData.power * 0.5 },
+    ], [sensorData.power]);
+
+    return (
+        <div>
+            <p>Cost: ₹{energyCost.toFixed(2)}</p>
+            <DeviceList devices={deviceStats} />
+        </div>
+    );
+}
+```
+
+### 1.10 Context API: Global State
+
+Context provides data to **deeply nested components** without prop drilling.
+
+**From this project** - [ThemeContext.tsx](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/contexts/ThemeContext.tsx):
+
+```tsx
+import { createContext, useContext, useState, useEffect } from 'react';
+
+// 1. Define the context shape
+interface ThemeContextType {
+    theme: 'light' | 'dark';
+    toggleTheme: () => void;
+}
+
+// 2. Create context with default value
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+// 3. Create Provider component
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        const saved = localStorage.getItem('theme');
+        if (saved) return saved as 'light' | 'dark';
+        return window.matchMedia('(prefers-color-scheme: dark)').matches 
+            ? 'dark' 
+            : 'light';
+    });
+
+    useEffect(() => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
+
+    return (
+        <ThemeContext.Provider value={{ theme, toggleTheme }}>
+            {children}
+        </ThemeContext.Provider>
+    );
+}
+
+// 4. Create custom hook for easy access
+export function useTheme() {
+    const context = useContext(ThemeContext);
+    if (!context) {
+        throw new Error('useTheme must be used within ThemeProvider');
+    }
+    return context;
+}
+```
+
+**Using the context:**
+
+```tsx
+// App.tsx - Wrap app with provider
+<ThemeProvider>
+    <Dashboard />
+</ThemeProvider>
+
+// Any nested component - use the hook
+function Header() {
+    const { theme, toggleTheme } = useTheme();
+    
+    return (
+        <button onClick={toggleTheme}>
+            {theme === 'light' ? '🌙' : '☀️'}
+        </button>
+    );
+}
+```
+
+### 1.11 Custom Hooks Pattern
+
+Custom hooks **extract and reuse** stateful logic. They start with [use](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useFCM.ts#22-144).
+
+**From this project** - Pattern used in all hooks:
+
+```tsx
+// src/hooks/useFireDetection.ts
+export function useFireDetection({
+    sensorData,
+    flameSensorEnabled,
+    fireAlerts,
+    holidayMode,
+}: UseFireDetectionProps): UseFireDetectionReturn {
+    
+    const hasNotifiedRef = useRef(false);
+
+    useEffect(() => {
+        // Skip if disabled
+        if (!flameSensorEnabled || !fireAlerts || holidayMode) {
+            return;
+        }
+
+        const { flameDetected } = sensorData;
+
+        if (flameDetected && !hasNotifiedRef.current) {
+            notificationService.send({
+                type: 'fire',
+                title: '🔥 Fire Detected!',
+                body: 'Fire has been detected in your home!',
+                sound: true,
+            });
+            hasNotifiedRef.current = true;
+        }
+
+        if (!flameDetected) {
+            hasNotifiedRef.current = false;  // Reset for next detection
+        }
+    }, [sensorData.flameDetected, flameSensorEnabled, fireAlerts, holidayMode]);
+
+    return {
+        fireDetected: sensorData.flameDetected,
+    };
+}
+```
+
+**Custom Hook Rules:**
+1. Name starts with [use](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useFCM.ts#22-144) (enforced by React)
+2. Can call other hooks (useState, useEffect, etc.)
+3. Can return anything: values, functions, objects
+4. Must be called at top level (not in loops/conditions)
+
+### 1.12 TypeScript with React
+
+TypeScript adds **type safety** to React. This project uses TypeScript throughout.
+
+**Typing Props:**
+
+```tsx
+// Define interface for props
+interface SensorCardProps {
+    voltage: number;
+    current: number;
+    power: number;
+    onRefresh?: () => void;  // Optional prop
+    children?: React.ReactNode;  // Children prop
+}
+
+// Use React.FC (Function Component) type
+const SensorCard: React.FC<SensorCardProps> = ({ 
+    voltage, 
+    current, 
+    power, 
+    onRefresh,
+    children 
+}) => {
+    return (
+        <div>
+            <p>Voltage: {voltage}V</p>
+            <p>Power: {power}W</p>
+            {onRefresh && <button onClick={onRefresh}>Refresh</button>}
+            {children}
+        </div>
+    );
+};
+```
+
+**Typing State:**
+
+```tsx
+// Explicit type with useState
+const [user, setUser] = useState<User | null>(null);
+const [items, setItems] = useState<string[]>([]);
+const [loading, setLoading] = useState<boolean>(false);
+
+// Type is inferred
+const [count, setCount] = useState(0);  // number
+const [name, setName] = useState('');   // string
+```
+
+**Typing Events:**
+
+```tsx
+// Input change event
+const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+};
+
+// Form submit event
+const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    // submit logic
+};
+
+// Button click event
+const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('Clicked at', e.clientX, e.clientY);
+};
+```
+
+**From this project** - [sensor.types.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/types/sensor.types.ts):
+
+```typescript
+// Interface for sensor data
+export interface SensorData {
+    waterLevel: number;
+    voltage: number;
+    current: number;
+    power: number;
+    totalEnergyKwh: number;
+    flameDetected: boolean;
+    motionDetected: boolean;
+    lastUpdated: number;
+}
+
+// Interface for relay states
+export interface RelayStates {
+    relay1: boolean;
+    relay2: boolean;
+    relay3: boolean;
+    relay4: boolean;
+}
+
+// Type alias for relay keys (union type)
+export type RelayKey = keyof RelayStates;  // 'relay1' | 'relay2' | 'relay3' | 'relay4'
+
+// Use in components
+function toggleRelay(key: RelayKey) {  // Only accepts valid relay keys
+    // ...
+}
+```
+
+### 1.13 Component Lifecycle Summary
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    COMPONENT LIFECYCLE                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  MOUNT                                                      │
+│  ├── Initial render with initial state                     │
+│  ├── DOM updated                                            │
+│  └── useEffect(() => {}, []) runs                          │
+│                                                             │
+│  UPDATE (when props/state change)                           │
+│  ├── Re-render with new values                              │
+│  ├── DOM updated                                            │
+│  ├── useEffect cleanup runs (for changed deps)              │
+│  └── useEffect callback runs                                │
+│                                                             │
+│  UNMOUNT                                                    │
+│  └── All useEffect cleanups run                             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 1.14 React Quick Reference
+
+| Hook | Purpose | Example |
+|------|---------|---------|
+| `useState` | Manage component state | `const [x, setX] = useState(0)` |
+| `useEffect` | Side effects (API, subscriptions) | `useEffect(() => {}, [dep])` |
+| `useRef` | Persistent values, DOM refs | `const ref = useRef(null)` |
+| `useCallback` | Memoize functions | `useCallback(() => fn(), [dep])` |
+| `useMemo` | Memoize computed values | `useMemo(() => calc(), [dep])` |
+| `useContext` | Access context value | `const value = useContext(Ctx)` |
+
+---
+
+## 2. Project Architecture Overview
+
+### High-Level Architecture
+
+```mermaid
+graph TB
+    subgraph Hardware["🔌 Hardware Layer"]
+        ESP32["ESP32 Microcontroller"]
+        PIR["PIR Motion Sensor"]
+        FLAME["Flame Sensor"]
+        ULTRASONIC["Ultrasonic Sensor"]
+        RELAY["4-Channel Relay"]
+        PZEM["Voltage/Current Sensor"]
+    end
+
+    subgraph Cloud["☁️ Cloud Layer"]
+        RTDB["Firebase Realtime Database"]
+        AUTH["Firebase Authentication"]
+        FCM["Firebase Cloud Messaging"]
+    end
+
+    subgraph Frontend["💻 Frontend Layer"]
+        REACT["React + TypeScript App"]
+        HOOKS["Custom Hooks"]
+        COMPONENTS["Dashboard Components"]
+    end
+
+    subgraph AI["🤖 AI Layer"]
+        OLLAMA["Ollama LLM"]
+        PROXY["Python Proxy Server"]
+    end
+
+    ESP32 --> RTDB
+    RTDB --> ESP32
+    REACT --> RTDB
+    REACT --> AUTH
+    REACT --> FCM
+    REACT --> PROXY
+    PROXY --> OLLAMA
+    PIR --> ESP32
+    FLAME --> ESP32
+    ULTRASONIC --> ESP32
+    PZEM --> ESP32
+    ESP32 --> RELAY
+```
+
+### Data Flow
+
+1. **Sensors → ESP32** → Data collected every 2 seconds
+2. **ESP32 → Firebase RTDB** → Data pushed to cloud
+3. **Firebase RTDB → React App** → Real-time listeners update UI
+4. **React App → Firebase RTDB** → User commands sent to ESP32
+5. **React App → Ollama** → Natural language processing
+6. **Ollama → React App** → AI responses displayed
+
+---
+
+## 2. Technology Stack Deep Dive
+
+### Frontend Technologies
+
+| Technology | Purpose | Why Chosen |
+|-----------|---------|------------|
+| **React 18** | UI Framework | Component-based, virtual DOM, large ecosystem |
+| **TypeScript** | Type Safety | Compile-time errors, better IntelliSense, maintainability |
+| **Vite** | Build Tool | Fast HMR, ESM-native, smaller bundles than Webpack |
+| **TailwindCSS** | Styling | Utility-first, no context switching, smaller CSS bundle |
+| **shadcn/ui** | Components | Accessible, customizable, copy-paste components |
+| **React Query** | Server State | Caching, background refetch, optimistic updates |
+
+### Backend Services
+
+| Service | Purpose | Why Chosen |
+|---------|---------|------------|
+| **Firebase RTDB** | Real-time data | Low latency, perfect for IoT, free tier |
+| **Firebase Auth** | Authentication | Easy email/password, security rules integration |
+| **Firebase FCM** | Push Notifications | Cross-platform, background support |
+| **Ollama** | Local LLM | Privacy, no API costs, offline capable |
+
+### Hardware
+
+| Component | Purpose | Why Chosen |
+|-----------|---------|------------|
+| **ESP32** | Microcontroller | WiFi built-in, dual-core, 240MHz, cheap |
+| **PIR Sensor** | Motion Detection | Low power, 120° angle, 7m range |
+| **Flame Sensor** | Fire Detection | Infrared detection, fast response |
+| **Ultrasonic** | Water Level | Non-contact, accurate distance measurement |
+| **4-Channel Relay** | Device Control | Isolated switching, 10A per channel |
+
+### Advantages & Disadvantages
+
+#### React + TypeScript
+**Advantages:**
+- Strong type checking prevents runtime errors
+- Better IDE support with autocomplete
+- Easier refactoring
+- Self-documenting code
+
+**Disadvantages:**
+- Learning curve for TypeScript
+- More verbose code
+- Build time slightly longer
+
+#### Firebase Realtime Database
+**Advantages:**
+- Real-time sync across all clients
+- Offline persistence
+- Simple API
+- Free tier sufficient for prototypes
+
+**Disadvantages:**
+- NoSQL structure can be limiting
+- No native joins
+- Pricing can scale with reads/writes
+
+#### Ollama vs Cloud AI
+**Advantages:**
+- No API costs
+- Data privacy - nothing leaves local network
+- Works offline
+- No rate limits
+
+**Disadvantages:**
+- Requires local compute resources
+- Model quality may be lower than GPT-4
+- Needs manual model management
+
+---
+
+## 3. Hardware Layer (ESP32)
+
+### ESP32 Code Breakdown
+
+**File**: [esp32_energy_code.ino](file:///e:/PROJECTS/clg%20project/IOT%20NEW/esp32_energy_code.ino)
+
+#### Pin Configuration
+
+```cpp
+// 🔌 Pin Definitions
+#define TRIG 5          // Ultrasonic trigger
+#define ECHO 18         // Ultrasonic echo
+#define PIR 21          // Motion sensor
+#define FLAME 19        // Flame sensor
+#define LED1 25         // Status LED 1
+#define LED2 26         // Status LED 2
+#define BUZZER 27       // Alert buzzer
+#define RELAY1 23       // Light 1
+#define RELAY2 22       // Light 2
+#define RELAY3 13       // Fan
+#define RELAY4 12       // Extra device
+
+// ⚡ Analog sensors
+#define VOLTAGE_SENSOR A0  // ZMPT101B voltage sensor
+#define CURRENT_SENSOR A3  // ACS712 current sensor
+```
+
+**Why these pins?**
+- GPIO 5, 18, 19, 21: Input-safe pins with no boot conflicts
+- GPIO 22, 23, 25, 26, 27: Output-safe pins
+- GPIO 12, 13: Can be used as outputs after boot
+
+#### Energy Calculation Logic
+
+```cpp
+void calculateEnergy() {
+    unsigned long currentMillis = millis();
+    unsigned long elapsedMs = currentMillis - lastEnergyUpdateMillis;
+    lastEnergyUpdateMillis = currentMillis;
+    
+    // Convert milliseconds to hours
+    float elapsedHours = elapsedMs / 3600000.0;  // 1 hour = 3,600,000 ms
+    
+    // Calculate energy consumed in this interval (kWh = kW × hours)
+    float energyConsumed = (power / 1000.0) * elapsedHours;
+    
+    // Add to total energy
+    totalEnergyKwh += energyConsumed;
+}
+```
+
+**How it works:**
+1. Track time since last calculation
+2. Convert power (Watts) to kilowatts
+3. Multiply by time (in hours)
+4. Accumulate total energy
+
+**Why EEPROM for energy storage?**
+- Persists across power cycles
+- Limited write cycles (solved by saving every 60 seconds)
+- No cloud dependency for local storage
+
+#### Active-Low Relay Logic
+
+```cpp
+void checkFirebaseCommands() {
+    if (Firebase.RTDB.getInt(&fbdo, "/relays/relay1")) {
+        int relay1State = fbdo.intData();
+        // Active-low: 1 in Firebase = HIGH on pin = relay ON
+        digitalWrite(RELAY1, relay1State == 1 ? HIGH : LOW);
+    }
+}
+```
+
+**Why active-low?**
+Most relay modules use inverted logic:
+- HIGH signal = Relay OFF (coil not energized)
+- LOW signal = Relay ON (coil energized)
+
+This is handled in the web app by inverting the display logic.
+
+---
+
+## 4. Firebase Integration
+
+### Firebase Configuration
+
+**File**: [src/services/firebase/config.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/services/firebase/config.ts)
+
+```typescript
+import { initializeApp, getApps, FirebaseApp } from "firebase/app";
+import { getDatabase, Database } from "firebase/database";
+import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
+
+// Firebase configuration from environment variables
+const firebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+// Prevent multiple Firebase instances (important for HMR)
+const app: FirebaseApp = getApps().length === 0
+    ? initializeApp(firebaseConfig)
+    : getApps()[0];
+
+export const database: Database = getDatabase(app);
+export const auth: Auth = getAuth(app);
+export const firestore: Firestore = getFirestore(app);
+```
+
+**Why check `getApps().length`?**
+- During development, Hot Module Replacement (HMR) re-runs code
+- Without this check, multiple Firebase instances are created
+- This causes "Firebase App already exists" errors
+
+### Real-time Database Service
+
+**File**: [src/services/firebase/database.service.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/services/firebase/database.service.ts)
+
+```typescript
+export function listenToSensorData(
+    callback: (data: Partial<SensorData>) => void,
+    onError?: (error: Error) => void
+): () => void {
+    const sensorsRef = ref(database, FIREBASE_PATHS.SENSORS);
+
+    const listener = onValue(
+        sensorsRef,
+        (snapshot: DataSnapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                callback({
+                    waterLevel: data.distance || 0,
+                    voltage: data.voltage || 0,
+                    current: data.current || 0,
+                    power: data.power || 0,
+                    totalEnergyKwh: data.totalEnergyKwh || 0,
+                    flameDetected: Boolean(data.flame),
+                    motionDetected: Boolean(data.motion),
+                    lastUpdated: data.timestamp || Date.now(),
+                });
+            }
+        },
+        (error) => {
+            console.error('Error reading sensor data:', error);
+            onError?.(error as Error);
+        }
+    );
+
+    // Return cleanup function
+    return () => {
+        off(sensorsRef, 'value', listener);
+    };
+}
+```
+
+**Key concepts:**
+1. **`onValue`** - Firebase real-time listener
+2. **Return cleanup function** - For React useEffect cleanup
+3. **Data transformation** - Map Firebase keys to TypeScript interface
+4. **Error callback** - Handle connection issues
+
+### Relay Service with Active-Low Handling
+
+**File**: [src/services/firebase/relay.service.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/services/firebase/relay.service.ts)
+
+```typescript
+export async function toggleRelay(relayKey: RelayKey, state?: boolean): Promise<void> {
+    try {
+        const relayRef = ref(database, `relays/${relayKey}`);
+        let newState: boolean;
+
+        if (state !== undefined) {
+            newState = state;
+        } else {
+            // Get current state and toggle
+            const snapshot = await get(relayRef);
+            const currentState = snapshot.exists() ? !snapshot.val() : false;
+            newState = !currentState;
+        }
+
+        // Invert logic for active-low relays (false = ON, true = OFF)
+        const firebaseValue = RELAY_CONFIG.ACTIVE_LOW ? !newState : newState;
+
+        await set(relayRef, firebaseValue);
+        console.log(`✅ ${relayKey} set to ${firebaseValue} (Logical: ${newState ? 'ON' : 'OFF'})`);
+    } catch (error) {
+        console.error(`❌ Error toggling ${relayKey}:`, error);
+        throw error;
+    }
+}
+```
+
+**Why handle active-low in the service layer?**
+- Single source of truth for inversion logic
+- Components don't need to know about hardware details
+- Easy to change if relay type changes
+
+### Database Structure
+
+```json
+{
+  "sensors": {
+    "flame": 0,
+    "motion": 0,
+    "distance": 25.5,
+    "voltage": 220.5,
+    "current": 0.5,
+    "power": 110.25,
+    "totalEnergyKwh": 2.345,
+    "timestamp": 1706443200000
+  },
+  "relays": {
+    "relay1": true,
+    "relay2": true,
+    "relay3": true,
+    "relay4": true
+  },
+  "timers": {
+    "relay1": {
+      "relayKey": "relay1",
+      "endTime": 1706450400000,
+      "duration": 3600,
+      "action": "off",
+      "createdAt": 1706446800000
+    }
+  },
+  "settings": {
+    "userId123": {
+      "sensors": { "flameSensorEnabled": true },
+      "notifications": { "masterEnabled": true },
+      "automation": { "holidayMode": false }
+    }
+  }
+}
+```
+
+---
+
+## 5. Frontend React Application
+
+### Application Entry Point
+
+**File**: [src/main.tsx](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/main.tsx)
+
+```typescript
+import { createRoot } from 'react-dom/client'
+import App from './App.tsx'
+import './index.css'
+
+createRoot(document.getElementById("root")!).render(<App />);
+```
+
+**Why `createRoot` instead of `ReactDOM.render`?**
+- React 18's new Concurrent Mode API
+- Enables automatic batching, transitions, and Suspense improvements
+- `ReactDOM.render` is deprecated in React 18
+
+### App Component with Providers
+
+**File**: [src/App.tsx](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/App.tsx)
+
+```typescript
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/home" element={<Index />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
+);
+```
+
+**Provider Order Matters:**
+1. **QueryClientProvider** - Outermost for React Query
+2. **ThemeProvider** - Theme context for dark mode
+3. **TooltipProvider** - Required by shadcn/ui components
+4. **BrowserRouter** - React Router for navigation
+
+### Theme Context Implementation
+
+**File**: [src/contexts/ThemeContext.tsx](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/contexts/ThemeContext.tsx)
+
+```typescript
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+    const [theme, setTheme] = useState<Theme>(() => {
+        // Check localStorage first
+        const saved = localStorage.getItem('theme') as Theme;
+        if (saved) return saved;
+
+        // Check system preference
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
+        return 'light';
+    });
+
+    useEffect(() => {
+        const root = document.documentElement;
+        
+        if (theme === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+        
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
+
+    return (
+        <ThemeContext.Provider value={{ theme, toggleTheme }}>
+            {children}
+        </ThemeContext.Provider>
+    );
+}
+```
+
+**Key patterns:**
+1. **Lazy initialization** - `useState(() => ...)` only runs once
+2. **System preference detection** - `prefers-color-scheme` media query
+3. **Persistence** - localStorage for user preference
+4. **CSS class toggle** - Tailwind's `dark:` class variant
+
+---
+
+## 6. Custom React Hooks
+
+### useAuth - Authentication Hook
+
+**File**: [src/hooks/useAuth.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useAuth.ts)
+
+```typescript
+export function useAuth(): UseAuthReturn {
+    const [user, setUser] = useState<FirebaseUser | null>(null);
+    const [loading, setLoading] = useState<boolean>(true);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+            setLoading(false);
+        });
+
+        return unsubscribe;
+    }, []);
+
+    const logout = async (): Promise<void> => {
+        try {
+            await signOut(auth);
+            setUser(null);
+        } catch (error) {
+            console.error('Logout error:', error);
+            throw error;
+        }
+    };
+
+    return { user, loading, logout };
+}
+```
+
+**Why `onAuthStateChanged`?**
+- Persists across page refreshes (uses cookies/localStorage)
+- Handles token refresh automatically
+- Works with Firebase security rules
+
+### useSensorData - Real-time Sensor Hook
+
+**File**: [src/hooks/useSensorData.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useSensorData.ts)
+
+```typescript
+export function useSensorData(userId: string | null): UseSensorDataReturn {
+    const [sensorData, setSensorData] = useState<SensorData>({
+        waterLevel: 0,
+        voltage: 0,
+        current: 0,
+        power: 0,
+        totalEnergyKwh: 0,
+        flameDetected: false,
+        motionDetected: false,
+        lastUpdated: Date.now(),
+    });
+
+    const [connectionStatus, setConnectionStatus] = useState<string>('Connecting...');
+
+    useEffect(() => {
+        if (!userId) {
+            setConnectionStatus('Not authenticated');
+            return;
+        }
+
+        setConnectionStatus('Connected');
+
+        const cleanup = listenToSensorData(
+            (data) => {
+                setSensorData((prev) => ({
+                    ...prev,
+                    ...data,
+                }));
+                setConnectionStatus('Live - Data Updated');
+            },
+            (error) => {
+                console.error('Error reading sensor data:', error);
+                setConnectionStatus('Error - Check connection');
+            }
+        );
+
+        return cleanup;
+    }, [userId]);
+
+    return { sensorData, connectionStatus };
+}
+```
+
+**Patterns used:**
+1. **Conditional subscription** - Only connect if authenticated
+2. **Cleanup function** - Properly unsubscribe on unmount
+3. **Spread merge** - `{ ...prev, ...data }` preserves existing values
+
+### useRelayControl - Device Control Hook
+
+**File**: [src/hooks/useRelayControl.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useRelayControl.ts)
+
+```typescript
+export function useRelayControl(userId: string | null): UseRelayControlReturn {
+    const [relayStates, setRelayStates] = useState<RelayStates>({
+        relay1: false,
+        relay2: false,
+        relay3: false,
+        relay4: false,
+    });
+
+    useEffect(() => {
+        if (!userId) return;
+
+        const cleanup = listenToRelayStates(
+            (states) => {
+                setRelayStates(states);
+            },
+            (error) => {
+                console.error('Error reading relay data:', error);
+            }
+        );
+
+        return cleanup;
+    }, [userId]);
+
+    const toggleRelay = useCallback(async (relayKey: RelayKey): Promise<void> => {
+        if (!userId) {
+            console.error('User not authenticated');
+            return;
+        }
+
+        try {
+            const newState = !relayStates[relayKey];
+            await toggleRelayService(relayKey, newState);
+        } catch (error) {
+            console.error(`Error toggling ${relayKey}:`, error);
+        }
+    }, [userId, relayStates]);
+
+    return { relayStates, toggleRelay };
+}
+```
+
+**Why `useCallback`?**
+- Prevents unnecessary re-renders of child components
+- Creates stable function reference
+- Dependencies: `userId` and `relayStates`
+
+### useRelayTimers - Timer Management Hook
+
+**File**: [src/hooks/useRelayTimers.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useRelayTimers.ts)
+
+```typescript
+export function useRelayTimers(userId: string | null): UseRelayTimersReturn {
+    const [activeTimers, setActiveTimers] = useState<ActiveTimers>({});
+    const [remainingTimes, setRemainingTimes] = useState<Record<RelayKey, number>>({
+        relay1: 0, relay2: 0, relay3: 0, relay4: 0,
+    });
+    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Listen to timer data from Firebase
+    useEffect(() => {
+        if (!userId) return;
+
+        const timersRef = ref(database, 'timers');
+        const unsubscribe = onValue(timersRef, (snapshot) => {
+            if (snapshot.exists()) {
+                setActiveTimers(snapshot.val());
+            } else {
+                setActiveTimers({});
+            }
+        });
+
+        return () => unsubscribe();
+    }, [userId]);
+
+    // Update remaining times every second
+    useEffect(() => {
+        const updateRemainingTimes = () => {
+            const now = Date.now();
+            const newRemaining: Record<RelayKey, number> = {
+                relay1: 0, relay2: 0, relay3: 0, relay4: 0,
+            };
+
+            const relayKeys: RelayKey[] = ['relay1', 'relay2', 'relay3', 'relay4'];
+
+            relayKeys.forEach((key) => {
+                const timer = activeTimers[key];
+                if (timer) {
+                    const remaining = Math.max(0, Math.floor((timer.endTime - now) / 1000));
+                    newRemaining[key] = remaining;
+
+                    // Timer expired - execute action and remove timer
+                    if (remaining === 0 && timer.endTime <= now) {
+                        executeTimerAction(key, timer.action);
+                        removeTimer(key);
+                    }
+                }
+            });
+
+            setRemainingTimes(newRemaining);
+        };
+
+        updateRemainingTimes();
+        intervalRef.current = setInterval(updateRemainingTimes, 1000);
+
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, [activeTimers]);
+
+    // ... setTimer, cancelTimer, formatTime functions
+}
+```
+
+**Timer architecture:**
+1. **Firebase stores** - [endTime](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/services/NotificationService.ts#74-83) (absolute timestamp), not duration
+2. **Client calculates** - Remaining seconds every second
+3. **Client executes** - When timer expires, client triggers action
+4. **Why client-side execution?** - No Firebase Cloud Functions needed
+
+### useVoiceInput - Speech Recognition Hook
+
+**File**: [src/hooks/useVoiceInput.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useVoiceInput.ts)
+
+```typescript
+export function useVoiceInput(): UseVoiceInputReturn {
+    const [isListening, setIsListening] = useState(false);
+    const [transcript, setTranscript] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+    // Check browser support
+    const isSupported = typeof window !== 'undefined' &&
+        ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+    useEffect(() => {
+        if (!isSupported) return;
+
+        const SpeechRecognitionAPI = window.SpeechRecognition || 
+                                      window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognitionAPI();
+
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+            let finalTranscript = '';
+            let interimTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const result = event.results[i];
+                if (result.isFinal) {
+                    finalTranscript += result[0].transcript;
+                } else {
+                    interimTranscript += result[0].transcript;
+                }
+            }
+
+            setTranscript(finalTranscript || interimTranscript);
+        };
+
+        recognitionRef.current = recognition;
+
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.abort();
+            }
+        };
+    }, [isSupported]);
+
+    // ... startListening, stopListening functions
+}
+```
+
+**Why Web Speech API?**
+- Native browser API - no external dependencies
+- Free - no API costs
+- Works offline (on Chrome)
+- Privacy - audio processed locally
+
+**Browser Support:**
+- Chrome: Full support
+- Edge: Full support
+- Safari: Partial support
+- Firefox: Not supported
+
+### useMotionAutomation - Smart Automation Hook
+
+**File**: [src/hooks/useMotionAutomation.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useMotionAutomation.ts)
+
+```typescript
+export function useMotionAutomation({
+    sensorData,
+    motionSensorEnabled,
+    motionAutoEnabled,
+    autoOffMinutes,
+    holidayMode,
+}: UseMotionAutomationProps): UseMotionAutomationReturn {
+    const lastMotionTimeRef = useRef<number | null>(null);
+    const autoOffTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lightsOnRef = useRef(false);
+
+    useEffect(() => {
+        // Skip if disabled or in holiday mode
+        if (!motionSensorEnabled || !motionAutoEnabled || holidayMode) {
+            return;
+        }
+
+        const { motionDetected } = sensorData;
+
+        if (motionDetected) {
+            lastMotionTimeRef.current = Date.now();
+
+            // Clear any pending auto-off timer
+            if (autoOffTimeoutRef.current) {
+                clearTimeout(autoOffTimeoutRef.current);
+                autoOffTimeoutRef.current = null;
+            }
+
+            // Turn on lights if not already on
+            if (!lightsOnRef.current) {
+                console.log('🚶 Motion detected - turning on lights');
+                turnOnAllRelays()
+                    .then(() => {
+                        lightsOnRef.current = true;
+                    });
+            }
+        } else {
+            // No motion - start auto-off countdown
+            if (lightsOnRef.current && !autoOffTimeoutRef.current) {
+                const autoOffMs = autoOffMinutes * 60 * 1000;
+                
+                autoOffTimeoutRef.current = setTimeout(() => {
+                    console.log('💤 Auto-off timer expired');
+                    turnOffAllRelays()
+                        .then(() => {
+                            lightsOnRef.current = false;
+                        });
+                    autoOffTimeoutRef.current = null;
+                }, autoOffMs);
+            }
+        }
+
+        return () => {
+            if (autoOffTimeoutRef.current) {
+                clearTimeout(autoOffTimeoutRef.current);
+            }
+        };
+    }, [sensorData.motionDetected, /* other deps */]);
+}
+```
+
+**Why `useRef` for tracking state?**
+- `useRef` doesn't trigger re-renders
+- Persists values between renders
+- Perfect for tracking "has the light been turned on?"
+
+### useWeather - Weather Data Hook
+
+**File**: [src/hooks/useWeather.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useWeather.ts)
+
+```typescript
+export const useWeather = (options: UseWeatherOptions = {}) => {
+    const {
+        refreshInterval = 30 * 60 * 1000, // 30 minutes
+        useGeolocation = true,
+        defaultCity = 'Mumbai',
+    } = options;
+
+    const [weather, setWeather] = useState<WeatherData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    // Load cached weather data
+    const loadCachedWeather = useCallback((): WeatherData | null => {
+        try {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                const { data, timestamp } = JSON.parse(cached);
+                if (Date.now() - timestamp < CACHE_DURATION) {
+                    return data;
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load cached weather:', e);
+        }
+        return null;
+    }, []);
+
+    const fetchWeather = useCallback(async () => {
+        setLoading(true);
+
+        // Try cache first
+        const cached = loadCachedWeather();
+        if (cached) {
+            setWeather(cached);
+            setLoading(false);
+            return;
+        }
+
+        // Try geolocation, fallback to default city
+        let weatherData = null;
+        
+        if (useGeolocation && 'geolocation' in navigator) {
+            try {
+                const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        timeout: 5000,
+                    });
+                });
+                weatherData = await fetchByCoords(position.coords.latitude, position.coords.longitude);
+            } catch {
+                // Geolocation failed, will use default city
+            }
+        }
+
+        if (!weatherData) {
+            weatherData = await fetchByCity(defaultCity);
+        }
+
+        if (weatherData) {
+            setWeather(weatherData);
+            cacheWeather(weatherData);
+        }
+        
+        setLoading(false);
+    }, [/* deps */]);
+};
+```
+
+**Caching strategy:**
+1. Check localStorage first
+2. If cache valid (<30 min), use it
+3. Otherwise fetch from API
+4. Cache new data for next time
+
+**Geolocation fallback:**
+1. Try browser geolocation
+2. Timeout after 5 seconds
+3. Fallback to default city
+
+---
+
+## 7. AI Chatbot System
+
+### Architecture Overview
+
+```mermaid
+graph LR
+    USER[User Input] --> CHATBOT[chatbot.tsx]
+    CHATBOT --> CMD{Command<br>Detection}
+    CMD -->|Device Command| FIREBASE[Firebase RTDB]
+    CMD -->|Query| OLLAMA[Ollama LLM]
+    OLLAMA --> PROXY[Python Proxy]
+    PROXY --> OLLAMA_SERVER[Ollama Server]
+    OLLAMA_SERVER --> PROXY
+    PROXY --> CHATBOT
+    CHATBOT --> RESPONSE[Response to User]
+```
+
+### Command Handler System
+
+**File**: [src/chatbot.tsx](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/chatbot.tsx)
+
+```typescript
+async function handleCommand(userMessage) {
+    const msg = userMessage.toLowerCase().trim();
+
+    // ===== TIMER COMMANDS =====
+    if (msg.includes("timer") && (msg.includes("status") || msg.includes("active"))) {
+        return await getActiveTimersStatus();
+    }
+
+    if (msg.includes("cancel") && msg.includes("timer")) {
+        const relay = findRelayFromText(msg);
+        if (relay) {
+            return await cancelRelayTimerFromChat(relay);
+        }
+        return "Please specify which device timer to cancel.";
+    }
+
+    // Check for timer command: "turn on/off X for Y time"
+    const hasTimerKeyword = msg.includes("for ") || msg.includes("after ");
+    if (hasTimerKeyword) {
+        const duration = parseTimerDuration(msg);
+        if (duration.totalSeconds > 0) {
+            const relay = findRelayFromText(msg);
+            if (relay) {
+                const isTurningOn = msg.includes("on") || msg.includes("chalu");
+                
+                if (isTurningOn) {
+                    // Turn on immediately, set timer to turn OFF
+                    await set(ref(database, `relays/${relay}`), false);
+                    await setRelayTimerFromChat(relay, duration.hours, duration.minutes, duration.seconds, 'off');
+                    return `✅ ${RELAY_NAMES[relay]} turned ON! Will turn OFF in ${formatDurationText(duration.totalSeconds)}. ⏰`;
+                }
+            }
+        }
+    }
+
+    // ... more command handling
+
+    // No command matched, return null to let Ollama handle
+    return null;
+}
+```
+
+**Command priority:**
+1. Timer status queries
+2. Cancel timer commands
+3. Timer set commands
+4. Device on/off commands
+5. Sensor status queries
+6. Fall through to AI
+
+### Hinglish Support (Hindi + English)
+
+```typescript
+const DEVICE_MAP = {
+    'light 1': 'relay1',
+    'pehli light': 'relay1',     // Hindi: "first light"
+    'light 2': 'relay2',
+    'dusri light': 'relay2',     // Hindi: "second light"
+    'fan': 'relay3',
+    'pankha': 'relay3',          // Hindi: "fan"
+};
+
+const isTurningOn = msg.includes("on") || 
+                    msg.includes("chalu") ||   // Hindi: "start"
+                    msg.includes("jala");      // Hindi: "light up"
+                    
+const isTurningOff = msg.includes("off") || 
+                     msg.includes("band") ||   // Hindi: "stop/close"
+                     msg.includes("bujha");    // Hindi: "extinguish"
+```
+
+### System Context for LLM
+
+```typescript
+function buildSystemContext(sensorData, relayStates) {
+    return `
+CURRENT SMART HOME STATUS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🏠 DEVICES:
+  • Light 1: ${relayStates.relay1 ? '🟢 ON' : '⚫ OFF'}
+  • Light 2: ${relayStates.relay2 ? '🟢 ON' : '⚫ OFF'}
+  • Fan: ${relayStates.relay3 ? '🟢 ON' : '⚫ OFF'}
+
+💧 WATER TANK:
+  • Status: ${waterStatus}
+  • Level: ${waterPercentage}% full
+
+⚡ ELECTRICITY:
+  • Voltage: ${sensorData.voltage?.toFixed(1) || 'N/A'}V
+  • Power: ${sensorData.power?.toFixed(1) || 'N/A'}W
+
+🛡️ SECURITY:
+  • Flame Sensor: ${sensorData.flameDetected ? '🔥 FIRE!' : '✅ Safe'}
+  • Motion Sensor: ${sensorData.motionDetected ? '👤 Motion' : '✅ None'}
+
+Use this information to answer the user's question.
+`;
+}
+```
+
+### Python Proxy Server
+
+**File**: [ollama_server.py](file:///e:/PROJECTS/clg%20project/IOT%20NEW/ollama_server.py)
+
+```python
+PROJECT_SYSTEM_PROMPT = """
+You are a Smart Home Assistant for an ESP32 + Firebase IoT system.
+
+IMPORTANT: Keep responses SHORT and DIRECT.
+
+For greetings: Respond naturally and briefly.
+For questions: Give concise answers using current data.
+For unrelated topics: Say "I can only help with the Smart Home project."
+"""
+
+# Keywords for project-only filtering
+PROJECT_KEYWORDS = [
+    "smart home", "esp32", "firebase", "relay", "pzem",
+    "pir", "flame sensor", "ultrasonic", "water level",
+    "light", "fan", "power", "voltage", "motion", "fire"
+]
+
+@app.route('/ollama', methods=['POST'])
+def ollama_proxy():
+    data = request.get_json()
+    prompt = data.get('prompt', '')
+    
+    # Block non-project questions
+    if not is_project_related(prompt):
+        return jsonify({'response': "I can only answer questions about the Smart Home project."})
+    
+    # Forward to Ollama with system prompt
+    ollama_response = requests.post(
+        f"{OLLAMA_BASE_URL}/api/generate",
+        json={
+            'model': 'phi3',
+            'prompt': prompt,
+            'system': PROJECT_SYSTEM_PROMPT,
+            'stream': False
+        },
+        timeout=60
+    )
+    
+    return jsonify({'response': ollama_response.json().get('response', '')})
+```
+
+**Why a Python proxy?**
+1. **CORS handling** - Browser blocks direct `localhost:11434` calls
+2. **System prompt injection** - Forces AI to stay on-topic
+3. **Request filtering** - Blocks non-project questions
+4. **Error handling** - Better error messages for users
+
+---
+
+## 8. Push Notifications (FCM)
+
+### FCM Hook
+
+**File**: [src/hooks/useFCM.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useFCM.ts)
+
+```typescript
+export const useFCM = (userId: string | null) => {
+    const [state, setState] = useState<FCMState>({
+        token: null,
+        permission: 'default',
+        isSupported: false,
+        error: null,
+    });
+
+    const requestPermission = useCallback(async (): Promise<boolean> => {
+        if (!state.isSupported) {
+            setState(prev => ({ ...prev, error: 'Notifications not supported' }));
+            return false;
+        }
+
+        try {
+            const permission = await Notification.requestPermission();
+            setState(prev => ({ ...prev, permission }));
+
+            if (permission === 'granted') {
+                await getTokenAndSave();
+                return true;
+            }
+            return false;
+        } catch (error) {
+            setState(prev => ({ ...prev, error: 'Failed to request permission' }));
+            return false;
+        }
+    }, [state.isSupported]);
+
+    const getTokenAndSave = useCallback(async () => {
+        if (!messaging || !userId) return null;
+
+        try {
+            // Register service worker first
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            
+            // Get FCM token
+            const token = await getToken(messaging, {
+                vapidKey: VAPID_KEY,
+                serviceWorkerRegistration: registration,
+            });
+
+            if (token) {
+                // Save token to Firebase
+                await set(ref(database, `fcmTokens/${userId}`), {
+                    token,
+                    lastUpdated: Date.now(),
+                    platform: navigator.platform,
+                });
+                return token;
+            }
+        } catch (error) {
+            console.error('Error getting FCM token:', error);
+        }
+        return null;
+    }, [userId]);
+
+    // Listen for foreground messages
+    useEffect(() => {
+        if (!messaging || state.permission !== 'granted') return;
+
+        const unsubscribe = onMessage(messaging, (payload) => {
+            if (payload.notification) {
+                showLocalNotification({
+                    title: payload.notification.title || 'Smart Home Alert',
+                    body: payload.notification.body || '',
+                });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [state.permission]);
+};
+```
+
+### Service Worker for Background Notifications
+
+**File**: [public/firebase-messaging-sw.js](file:///e:/PROJECTS/clg%20project/IOT%20NEW/public/firebase-messaging-sw.js)
+
+```javascript
+importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
+
+firebase.initializeApp({ /* config */ });
+
+const messaging = firebase.messaging();
+
+// Handle background messages
+messaging.onBackgroundMessage((payload) => {
+    const notificationTitle = payload.notification?.title || 'Smart Home Alert';
+    const notificationOptions = {
+        body: payload.notification?.body || '',
+        icon: '/favicon.ico',
+        vibrate: [200, 100, 200],
+        actions: [
+            { action: 'open', title: 'Open Dashboard' },
+            { action: 'dismiss', title: 'Dismiss' }
+        ]
+    };
+
+    self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// Handle notification click
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    if (event.action === 'dismiss') return;
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window' })
+            .then((clientList) => {
+                // Focus existing window or open new
+                for (const client of clientList) {
+                    if ('focus' in client) return client.focus();
+                }
+                return clients.openWindow('/');
+            })
+    );
+});
+```
+
+**Why a Service Worker?**
+- Background notifications need running code
+- SW runs independently of the page
+- Can receive messages when app is closed
+
+### Notification Service
+
+**File**: [src/services/NotificationService.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/services/NotificationService.ts)
+
+```typescript
+class NotificationService {
+    private audioContext: AudioContext | null = null;
+    private settings: UserSettings['notifications'] | null = null;
+
+    private isEnabled(type: NotificationType): boolean {
+        if (!this.settings?.masterEnabled) return false;
+
+        switch (type) {
+            case 'fire': return this.settings.fireAlerts;
+            case 'motion': return this.settings.motionAlerts;
+            case 'timer': return this.settings.timerAlerts;
+            default: return true;
+        }
+    }
+
+    send(options: NotificationOptions) {
+        if (!this.isEnabled(options.type)) return;
+
+        showLocalNotification({
+            title: options.title,
+            body: options.body,
+        });
+
+        // Play sound for fire alerts
+        if (options.sound && options.type === 'fire') {
+            this.playAlertSound();
+        }
+    }
+
+    private playAlertSound() {
+        if (!this.audioContext) {
+            this.audioContext = new AudioContext();
+        }
+
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+
+        const now = this.audioContext.currentTime;
+        oscillator.start(now);
+        
+        // Beep pattern: on-off-on-off-on
+        gainNode.gain.setValueAtTime(0.3, now);
+        gainNode.gain.setValueAtTime(0, now + 0.2);
+        gainNode.gain.setValueAtTime(0.3, now + 0.3);
+        gainNode.gain.setValueAtTime(0, now + 0.5);
+
+        oscillator.stop(now + 1);
+    }
+}
+
+export const notificationService = new NotificationService();
+```
+
+**Singleton pattern:**
+- Single instance across entire app
+- Shared AudioContext
+- Consistent settings
+
+---
+
+## 9. State Management & Data Flow
+
+### Data Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant ESP32
+    participant Firebase
+    participant React
+    participant User
+
+    ESP32->>Firebase: Push sensor data (every 2s)
+    React->>Firebase: Subscribe to /sensors
+    Firebase-->>React: Real-time update
+    React->>React: Update state via hooks
+    React->>User: Re-render UI
+
+    User->>React: Toggle relay switch
+    React->>Firebase: Update /relays/relay1
+    Firebase-->>ESP32: Push relay command
+    ESP32->>ESP32: Toggle physical relay
+    Firebase-->>React: Confirm state change
+    React->>User: Update UI
+```
+
+### Hook Composition in Dashboard
+
+**File**: [src/pages/Dashboard.tsx](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/pages/Dashboard.tsx)
+
+```typescript
+const Dashboard: React.FC = () => {
+    // Authentication
+    const { user, loading, logout } = useAuth();
+    
+    // Sensor data (real-time from Firebase)
+    const { sensorData, connectionStatus } = useSensorData(user?.uid || null);
+    
+    // Relay control
+    const { relayStates, toggleRelay } = useRelayControl(user?.uid || null);
+    
+    // Timer management
+    const { activeTimers, remainingTimes, setTimer, cancelTimer } = useRelayTimers(user?.uid || null);
+    
+    // Chatbot
+    const { messages, isTyping, sendMessage } = useChatbot(user?.uid || null);
+    
+    // User settings
+    const { settings } = useSettings(user?.uid || null);
+
+    // Motion automation hook
+    useMotionAutomation({
+        sensorData,
+        motionSensorEnabled: settings.sensors.motionSensorEnabled,
+        motionAutoEnabled: settings.automation?.motionLightsEnabled ?? true,
+        autoOffMinutes: settings.automation?.motionAutoOffMinutes ?? 5,
+        holidayMode: settings.automation?.holidayMode ?? false,
+    });
+
+    // ... render dashboard
+};
+```
+
+**Hook dependency chain:**
+1. [useAuth](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useAuth.ts#11-39) → Provides `userId`
+2. All other hooks depend on `userId`
+3. [useMotionAutomation](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useMotionAutomation.ts#19-108) depends on `sensorData` and `settings`
+
+### Type Definitions
+
+**File**: [src/types/sensor.types.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/types/sensor.types.ts)
+
+```typescript
+export interface SensorData {
+    waterLevel: number;
+    voltage: number;
+    current: number;
+    power: number;
+    totalEnergyKwh: number;
+    flameDetected: boolean;
+    motionDetected: boolean;
+    lastUpdated: number;
+}
+
+export interface RelayStates {
+    relay1: boolean;
+    relay2: boolean;
+    relay3: boolean;
+    relay4: boolean;
+}
+
+export interface ChatMessage {
+    id: string;
+    message: string;
+    isUser: boolean;
+    timestamp: number;
+}
+
+export interface WaterTankStatus {
+    percentage: number;
+    status: 'overflow' | 'full' | 'normal' | 'low' | 'empty';
+    color: string;
+}
+
+export type RelayKey = keyof RelayStates;
+```
+
+**Why explicit types?**
+- Catch errors at compile time
+- Self-documenting code
+- Better IDE autocomplete
+- Easier refactoring
+
+---
+
+## 10. Interview Questions & Answers
+
+### React & TypeScript Questions
+
+**Q1: Why did you use React with TypeScript instead of plain JavaScript?**
+
+> TypeScript provides compile-time type checking, which caught many bugs during development. For example, when I was implementing the relay control, TypeScript ensured I couldn't accidentally pass a string where a [RelayKey](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/types/sensor.types.ts#32-33) was expected. This saved debugging time and made the code self-documenting.
+
+**Q2: Explain the custom hooks pattern you used.**
+
+> I created specialized hooks like [useSensorData](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useSensorData.ts#10-54), [useRelayControl](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useRelayControl.ts#11-53), and [useRelayTimers](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useRelayTimers.ts#30-190) to separate concerns. Each hook manages its own state and side effects, making the Dashboard component clean and focused on rendering. This also allows reusing the same logic in different components.
+
+**Q3: How do you handle cleanup in your hooks?**
+
+> Every hook that creates subscriptions returns a cleanup function. For example, [useSensorData](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/hooks/useSensorData.ts#10-54) subscribes to Firebase with `onValue` and returns the `off()` function. React's useEffect cleanup mechanism calls this when the component unmounts or dependencies change, preventing memory leaks.
+
+**Q4: Why useCallback for toggle functions?**
+
+> `useCallback` memoizes the function reference, so child components don't re-render unnecessarily. Without it, every parent render creates a new function, causing all children to re-render even if their props haven't changed.
+
+### Firebase Questions
+
+**Q5: Why Firebase Realtime Database instead of Firestore?**
+
+> For IoT data that updates every 2 seconds, Realtime Database is better because:
+> - Lower latency (50-100ms vs 100-200ms for Firestore)
+> - Better for frequent small updates
+> - Simpler for flat data structures like sensor readings
+> 
+> Firestore is better for complex queries and large documents, which we don't need here.
+
+**Q6: How do you handle the active-low relay logic?**
+
+> Relay modules typically use inverted logic (LOW = ON). I handle this in one place - [relay.service.ts](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/services/firebase/relay.service.ts) - using a configuration constant `RELAY_CONFIG.ACTIVE_LOW`. The service inverts the boolean before writing to Firebase, so components always work with logical ON/OFF.
+
+**Q7: How do real-time updates work?**
+
+> Firebase's `onValue` creates a WebSocket connection. When ESP32 writes to `/sensors/voltage`, Firebase pushes that change to all connected clients. My React hooks receive these updates via callbacks and update state, triggering re-renders.
+
+### IoT & Hardware Questions
+
+**Q8: How does the ESP32 calculate energy consumption?**
+
+> Energy (kWh) = Power (kW) × Time (hours)
+> 
+> Every 2 seconds, the ESP32:
+> 1. Reads voltage and current sensors
+> 2. Calculates power (V × I)
+> 3. Calculates elapsed time since last reading
+> 4. Adds [(power/1000) × (elapsedMs/3600000)](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/App.tsx#15-34) to total energy
+> 5. Saves to EEPROM every 60 seconds for persistence
+
+**Q9: Why store energy in EEPROM?**
+
+> EEPROM persists across power cycles. If the ESP32 reboots, it loads the accumulated energy from EEPROM instead of starting from 0. I only save every 60 seconds to reduce EEPROM wear (limited write cycles).
+
+**Q10: How does the timer system work?**
+
+> Timers store [endTime](file:///e:/PROJECTS/clg%20project/IOT%20NEW/src/services/NotificationService.ts#74-83) (absolute Unix timestamp) in Firebase. The client:
+> 1. Subscribes to `/timers` in Firebase
+> 2. Every second, calculates remaining time: `endTime - now`
+> 3. When remaining ≤ 0, executes the action and deletes the timer
+> 
+> This approach is simple and works without Cloud Functions.
+
+### AI/LLM Questions
+
+**Q11: Why Ollama instead of OpenAI/Gemini?**
+
+> - **Cost**: Free local inference
+> - **Privacy**: Data never leaves the local network
+> - **Offline**: Works without internet
+> - **No rate limits**: Good for development
+> 
+> Trade-off: Requires local compute and model quality may be lower.
+
+**Q12: How do you prevent the AI from going off-topic?**
+
+> 1. **Keyword filter**: Python proxy checks if the message contains project-related keywords
+> 2. **System prompt**: Every request includes instructions to stay on-topic
+> 3. **Fallback response**: Non-project questions get "I can only help with Smart Home"
+
+**Q13: Why a Python proxy between React and Ollama?**
+
+> 1. **CORS**: Browsers block cross-origin requests to `localhost:11434`
+> 2. **System prompt injection**: Ensures every request has context
+> 3. **Request filtering**: Blocks non-project queries server-side
+> 4. **Better error messages**: Translates Ollama errors for users
+
+### Architecture Questions
+
+**Q14: How would you add user roles (admin vs regular user)?**
+
+> I would:
+> 1. Store role in Firestore: `/users/{uid}/role: "admin" | "user"`
+> 2. Add Firebase security rules to restrict writes
+> 3. Create a `useUser` hook that fetches the role
+> 4. Conditionally render admin features based on role
+
+**Q15: How would you add Google Assistant integration?**
+
+> 1. Create a Firebase Cloud Function that handles Google Actions intents
+> 2. Map intents like "turn on light 1" to relay writes
+> 3. Link the Actions project to Firebase
+> 4. Use OAuth for account linking
+
+**Q16: What would break if 1000 users used this simultaneously?**
+
+> 1. **Firebase costs**: Each user subscribes to real-time updates
+> 2. **ESP32 bandwidth**: Would need user isolation
+> 3. **Ollama server**: Single instance can't handle concurrent requests
+> 
+> Solutions: User-specific database paths, load balancing, queue for AI requests.
+
+### Performance Questions
+
+**Q17: How do you handle slow sensors?**
+
+> The ultrasonic sensor uses `pulseIn()` which blocks. I mitigate this by:
+> 1. Setting a timeout on `pulseIn`
+> 2. Running sensor reads sequentially (not in interrupts)
+> 3. Using 2-second intervals so delays are acceptable
+
+**Q18: How do you prevent UI flickering with real-time updates?**
+
+> 1. **Spread merge**: `{ ...prev, ...data }` only updates changed fields
+> 2. **React's reconciliation**: Only DOM nodes that change are updated
+> 3. **Memoization**: Child components use `React.memo` to skip renders
+
+---
+
+## 📚 Additional Resources
+
+### Running the Project
+
+```bash
+# Terminal 1: Start Ollama
+ollama serve
+ollama pull phi3
+
+# Terminal 2: Start Python proxy
+python ollama_server.py
+
+# Terminal 3: Start React app
+npm run dev
+```
+
+### Environment Variables
+
+```env
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_DATABASE_URL=https://your_project.firebaseio.com
+VITE_FIREBASE_PROJECT_ID=your_project
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+VITE_FIREBASE_VAPID_KEY=your_vapid_key
+VITE_OPENWEATHER_API_KEY=your_weather_api_key
+VITE_OLLAMA_URL=http://localhost:5001/ollama
+```
+
+---
+
+> **Last Updated**: January 28, 2026
+> **Author**: Generated for interview preparation

@@ -222,7 +222,7 @@ export const ChatbotCard: React.FC<ChatbotCardProps> = ({
                     </div>
 
                     <div className="mt-1.5 flex flex-wrap gap-1 justify-center">
-                        {['Light on', 'Water?', 'Fan off 30m'].map((suggestion, i) => (
+                        {['Light on', 'Fan off 30m', 'Water?', 'Energy?', 'Status'].map((suggestion, i) => (
                             <button
                                 key={i}
                                 onClick={() => setNewMessage(suggestion)}

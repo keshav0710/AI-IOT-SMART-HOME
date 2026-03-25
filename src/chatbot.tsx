@@ -6,7 +6,7 @@ import { database } from "./firebase";
    ========================================================= */
 const OLLAMA_URL = "http://localhost:5001/ollama";
 const OLLAMA_CHAT_URL = "http://localhost:5001/ollama/chat";
-const OLLAMA_MODEL = "phi3:latest";  // Using full Phi3 model
+const OLLAMA_MODEL = "phi3:latest";  // Only installed model
 
 /* =========================================================
    🔹 SPEAK RESPONSE ALOUD
@@ -258,8 +258,10 @@ async function getAllSensorData() {
     return (
       `Current system status:\n\n` +
       `* Voltage: ${data.voltage?.toFixed(1) || "N/A"}V\n` +
-      `* Current: ${data.current?.toFixed(1) || "N/A"}A\n` +
+      `* Current: ${data.current?.toFixed(2) || "N/A"}A\n` +
       `* Power: ${data.power?.toFixed(1) || "N/A"}W\n` +
+      `* Total Energy: ${data.totalEnergyKwh?.toFixed(4) || "N/A"} kWh\n` +
+      `* Est. Cost: ₹${((data.totalEnergyKwh || 0) * 8.5).toFixed(2)}\n` +
       `* Flame sensor: ${data.flame ? "🔥 FIRE DETECTED!" : "✓ Safe"}\n` +
       `* Motion sensor: ${data.motion ? "👤 Motion detected" : "✓ No motion"}\n` +
       `* Water distance: ${data.distance?.toFixed(1) || "N/A"}cm`
@@ -386,6 +388,9 @@ async function handleCommand(userMessage) {
       return await getWaterTankStatus();
     }
     if (msg.includes("status") || msg.includes("sensor") || msg.includes("system")) {
+      return await getAllSensorData();
+    }
+    if (msg.includes("energy") || msg.includes("kwh") || msg.includes("bill") || msg.includes("cost") || msg.includes("electricity") || msg.includes("units")) {
       return await getAllSensorData();
     }
     // If just a device name without action, maybe let AI handle or prompt for action?
@@ -521,10 +526,12 @@ CURRENT SMART HOME STATUS:
   • Level: ${waterPercentage}% full
   • Distance to water: ${distance.toFixed(1)}cm
 
-⚡ ELECTRICITY:
+⚡ ELECTRICITY (ACS712 + ZMPT101B Sensors):
   • Voltage: ${sensorData.voltage?.toFixed(1) || 'N/A'}V
-  • Current: ${sensorData.current?.toFixed(1) || 'N/A'}A
+  • Current: ${sensorData.current?.toFixed(2) || 'N/A'}A
   • Power: ${sensorData.power?.toFixed(1) || 'N/A'}W
+  • Total Energy Used: ${sensorData.totalEnergyKwh?.toFixed(4) || 'N/A'} kWh
+  • Estimated Cost: ₹${((sensorData.totalEnergyKwh || 0) * 8.5).toFixed(2)} (@ ₹8.5/kWh)
 
 🛡️ SECURITY:
   • Flame Sensor: ${sensorData.flameDetected ? '🔥 FIRE DETECTED!' : '✅ Safe'}

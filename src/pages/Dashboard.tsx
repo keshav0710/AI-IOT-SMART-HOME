@@ -9,6 +9,8 @@ import { useRelayTimers } from '../hooks/useRelayTimers';
 import { useMotionAutomation } from '../hooks/useMotionAutomation';
 import { useChatbot } from '../hooks/useChatbot';
 import { useSettings } from '../hooks/useSettings';
+import { useEnergyHistory } from '../hooks/useEnergyHistory';
+import { useScheduledAutomations } from '../hooks/useScheduledAutomations';
 
 // Services
 import { turnOnAllRelays, turnOffAllRelays } from '../services/firebase/relay.service';
@@ -22,6 +24,7 @@ import { RelayControlCard } from '../components/dashboard/RelayControlCard';
 import { SecurityCard } from '../components/dashboard/SecurityCard';
 import { CameraCard } from '../components/dashboard/CameraCard';
 import { ChatbotCard } from '../components/dashboard/ChatbotCard';
+import { EnergyChartCard } from '../components/dashboard/EnergyChartCard';
 
 // Utils
 import { getWaterTankStatus } from '../utils/water-tank.utils';
@@ -33,6 +36,15 @@ const Dashboard: React.FC = () => {
   const { activeTimers, remainingTimes, setTimer, cancelTimer } = useRelayTimers(user?.uid || null);
   const { messages, isTyping, sendMessage } = useChatbot(user?.uid || null);
   const { settings } = useSettings(user?.uid || null);
+  const { history: energyHistory, isLoading: energyLoading } = useEnergyHistory(
+    user?.uid || null,
+    sensorData.power,
+    sensorData.voltage,
+    sensorData.current,
+    sensorData.totalEnergyKwh,
+  );
+  // Schedules fire in background even from dashboard
+  useScheduledAutomations(user?.uid || null);
 
   // Motion automation - turns on lights when motion detected, auto-off after timeout
   useMotionAutomation({
@@ -140,6 +152,17 @@ const Dashboard: React.FC = () => {
             relayStates={relayStates}
             onSendMessage={sendMessage}
             onVolumeChange={setSpeechVolume}
+          />
+        </div>
+
+        {/* Energy Chart – full width row */}
+        <div className="mt-6">
+          <EnergyChartCard
+            history={energyHistory}
+            isLoading={energyLoading}
+            livePower={sensorData.power}
+            liveVoltage={sensorData.voltage}
+            liveCurrent={sensorData.current}
           />
         </div>
       </main>

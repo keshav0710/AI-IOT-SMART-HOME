@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Home, LogOut, Settings, Wifi, WifiOff } from 'lucide-react';
+import { Home, LogOut, Settings, Clock } from 'lucide-react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -16,6 +16,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     connectionStatus,
     onLogout,
 }) => {
+    const isOnline = connectionStatus === 'Connected' ||
+        connectionStatus === 'Live - Data Updated' ||
+        connectionStatus.toLowerCase().startsWith('live');
+
     const navigate = useNavigate();
 
     return (
@@ -32,11 +36,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                             </h1>
                             <div className="flex items-center gap-2">
                                 <span className="flex h-2 w-2 relative">
-                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                    <span className={`relative inline-flex rounded-full h-2 w-2 ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                    <span className={`relative inline-flex rounded-full h-2 w-2 ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                 </span>
                                 <span className="text-xs text-muted-foreground font-medium">
-                                    {connectionStatus === 'connected' ? 'System Online' : 'Offline'}
+                                    {isOnline ? 'System Online' : connectionStatus}
                                 </span>
                             </div>
                         </div>
@@ -47,6 +51,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                             <span className="text-sm font-medium">{user?.email?.split('@')[0]}</span>
                             <span className="text-xs text-muted-foreground">Admin Access</span>
                         </div>
+
+                        <Button
+                            onClick={() => navigate('/schedules')}
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-xl hover:bg-primary/10 transition-colors"
+                            title="Schedules"
+                        >
+                            <Clock className="w-5 h-5" />
+                        </Button>
 
                         <Button
                             onClick={() => navigate('/settings')}
