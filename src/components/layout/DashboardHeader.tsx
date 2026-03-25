@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Home, LogOut, Settings, Wifi, WifiOff } from 'lucide-react';
+import { Home, LogOut, Settings, Clock } from 'lucide-react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -51,6 +51,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                             <span className="text-sm font-medium">{user?.email?.split('@')[0]}</span>
                             <span className="text-xs text-muted-foreground">Admin Access</span>
                         </div>
+
+                        <Button
+                            onClick={() => navigate('/schedules')}
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-xl hover:bg-primary/10 transition-colors"
+                            title="Schedules"
+                        >
+                            <Clock className="w-5 h-5" />
+                        </Button>
 
                         <Button
                             onClick={() => navigate('/settings')}
